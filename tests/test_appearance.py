@@ -247,6 +247,12 @@ class AppearanceUsabilityTests(unittest.TestCase):
         self.assertEqual(app.appearance.mode, "light")
         self.assertFalse(app.dark_mode_var.get())
         self.assertIsNone(app._worker)
+        starts = []
+        self.root.bind("<Control-Return>", lambda event: starts.append("start"))
+        app.theme_switch.event_generate("<Control-KeyPress-Return>")
+        self.root.update()
+        self.assertEqual(starts, ["start"])
+        self.assertEqual(app.appearance.mode, "light", "Ctrl+Enter must not change the theme")
 
     def test_theme_segments_support_direct_choice_and_cancelled_press(self) -> None:
         app = self._show()

@@ -61,6 +61,8 @@ class ThemeSwitch(tk.Canvas):
             self.bind(f"<{key}>", lambda event, value=mode: self._key(value))
         self.bind("<space>", lambda event: self._key())
         self.bind("<Return>", lambda event: self._key())
+        # Let the app's Ctrl+Enter shortcut propagate instead of toggling theme.
+        self.bind("<Control-Return>", lambda event: None)
         self.bind("<Destroy>", self._destroy)
 
     def _surface(self, width, height, radius, fill, border, *, transparent=False):
