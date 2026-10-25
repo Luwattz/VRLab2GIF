@@ -343,7 +343,7 @@ class GifCreatorApp:
 
     def _cycle_page(self, step: int) -> str:
         names = tuple(self.page_areas)
-        self.select_page(names[(names.index(self.page_var.get()) + step) % len(names)])
+        self.navigation.select(names[(names.index(self.page_var.get()) + step) % len(names)], animate=False)
         self.page_buttons[self.page_var.get()].focus_set()
         return "break"
 

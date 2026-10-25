@@ -1,6 +1,8 @@
 # Virtual Reality Lab 视角合成器
 
-**1.2.2**：Dark / Light 切换时，原生标题栏、主体和控件采用同一份渐变配色，修复标题栏与主体变色不同步及主体瞬间换色。参考 ACT-WBEX-Updater 的可中断过渡方式，本机完整切换实测约 0.6 秒。默认仍为 Dark，详见 [主题过渡说明](docs/theme-transition.md)。
+**1.2.3**：修正主题渐变中位图与原生控件混色取整不一致引起的条带色差，并减少整幅位图复制及小块平铺重绘。三个分页改为与 Dark / Light 一致的分段滑块，支持连续反向切换、取消点击和键盘选择。
+
+Dark / Light 切换时，原生标题栏、主体和控件采用同一份渐变配色。参考 ACT-WBEX-Updater 的可中断过渡方式，本机完整切换实测约 0.6 秒。默认仍为 Dark，详见 [主题过渡说明](docs/theme-transition.md)。
 
 右上角保留 ACT-WBEX-Updater 风格的分段按钮，两个标签固定显示，选中块平滑滑动，支持快速反向切换、按下取消及键盘操作，并遵循 Windows 动画设置。
 
@@ -16,7 +18,7 @@ VRLab 2024 R1 的 COM 导出文件名使用索引，与手动菜单导出的角�
 
 ## 使用
 
-正式版本位于 [GitHub Releases](https://github.com/Luwattz/VRLab2GIF/releases/latest)。下载 `VRLab2GIF.exe`，或下载包含说明文档的 `VRLab2GIF-Windows-x64.zip`。本地构建输出为 `dist/1.2.2/VRLab2GIF.exe`。无需安装 Python；单独复制 EXE 即可运行，Arial 与原生拖放组件均已内嵌。
+正式版本位于 [GitHub Releases](https://github.com/Luwattz/VRLab2GIF/releases/latest)。下载 `VRLab2GIF.exe`，或下载包含说明文档的 `VRLab2GIF-Windows-x64.zip`。本地构建输出为 `dist/1.2.3/VRLab2GIF.exe`。无需安装 Python；单独复制 EXE 即可运行，Arial 与原生拖放组件均已内嵌。
 
 1. 从资源管理器将一个 `.OptisVR` 或 `.speos360` 视角文件拖入程序窗口，也可以点击“选择文件…”或手动填写路径。
 2. 输出默认在源文件旁的 `文件名_GIF` 文件夹，可更改。自定义输出后，换输入文件会保留自定义位置。
@@ -27,7 +29,7 @@ VRLab 2024 R1 的 COM 导出文件名使用索引，与手动菜单导出的角�
 
 分页切换保留文件路径、参数、角度范围、日志和各页滚动位置。Ctrl+Tab / Ctrl+Shift+Tab 可前后切页。角度筛选标签显示“已设”或“检查”，提醒隐藏页上的筛选仍然生效；清除筛选后恢复普通标签。生成中分页仍可切换，处理失败自动显示日志页；在其他页面拖入新文件会返回生成设置页。
 
-分页设计参考 apple-design 技能中的导航定位、分组、字体层级和即时反馈原则；该技能没有专门的分页模板，共享底座和选中块是针对本应用的具体设计。控件使用系统字体与原生单选按钮语义，保留键盘操作；切换立即响应，Dark/Light 配色及显示缩放同步适配。
+分页设计参考 apple-design 技能中的导航定位、分组、字体层级和即时反馈原则；该技能没有专门的分页模板，共享底座和选中块是针对本应用的具体设计。控件使用系统字体，分页和主题均采用分段滑块并保留键盘操作；切换立即响应，Dark/Light 配色及显示缩放同步适配。
 
 需要 **Windows、本机已安装并注册的 Ansys Virtual Reality Lab，以及可用授权**。导出接口要求显示 VRLab 窗口，运行期间会短暂出现。首次验证建议使用 [官方样例](samples/ansys-vrlab/README.md)，角度筛选留空。
 
@@ -63,7 +65,7 @@ python main.py
 构建：
 
 ```powershell
-.\build.ps1 -OutputDirectory 'dist\1.2.2'
+.\build.ps1 -OutputDirectory 'dist\1.2.3'
 ```
 
 构建自动安装依赖、运行测试、检查字体与拖放桥接，然后生成单文件 EXE 和 ZIP。可用 `-Python 'C:\path\python.exe' -SkipInstall` 复用已配置环境。PyInstaller 包含 tkinterdnd2 的原生 Tk 扩展；字体缺失时构建会报错，详见 [字体资源说明](docs/fonts.md)。

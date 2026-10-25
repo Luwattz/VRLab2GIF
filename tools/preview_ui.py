@@ -38,6 +38,8 @@ def main() -> None:
     if args.scale is not None:
         root.tk.call("tk", "scaling", args.scale)
     app = GifCreatorApp(root)
+    # Documentation screenshots capture the settled page selector.
+    app.navigation.motion_enabled = False
     app.set_theme(args.theme)
     app.select_page(args.page)
     if args.width and args.height:

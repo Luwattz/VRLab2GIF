@@ -332,7 +332,9 @@ class AppearanceUsabilityTests(unittest.TestCase):
         self.assertEqual(self.root.cget("background"), PALETTES["dark"].background)
         fade.cancel()
         images = set(self.root.tk.call("image", "names"))
-        with patch("vrlab2gif.appearance.ImageTk.PhotoImage", side_effect=AssertionError("new frame image")), \
+        with patch("PIL.ImageTk.PhotoImage.paste", side_effect=AssertionError("displayed-image copy")), \
+                patch("PIL.Image.blend", side_effect=AssertionError("full-bitmap blend")), \
+                patch("vrlab2gif.appearance.ImageTk.PhotoImage", side_effect=AssertionError("new frame image")), \
                 patch.object(app.appearance.style, "theme_create", side_effect=AssertionError("new frame theme")), \
                 patch.object(app.appearance, "_native_titlebar") as caption:
             for amount in (.15, .35, .55, .75):
@@ -407,6 +409,81 @@ class AppearanceUsabilityTests(unittest.TestCase):
             app.appearance.transition.render(.3)
             self.assertEqual(sum(call.args[1] == 35 for call in api.call_args_list), 1)
             self.assertEqual(sum(call.args[1] == 36 for call in api.call_args_list), 1)
+
+    def test_fade_bitmap_flat_fills_match_native_colors_without_horizontal_bands(self):
+        app = self._show()
+        appearance = app.appearance
+        for amount in (.03, .15, .35, .55, .75, .97):
+            appearance.transition.render(amount)
+            color = tuple(int(appearance.colors.surface[i:i+2], 16) for i in (1, 3, 5))
+            photo = app.settings_card._photo.photo
+            middle = app.settings_card.winfo_width()//2
+            self.assertEqual({photo.get(middle, y) for y in range(4, app.settings_card.winfo_height()-6)}, {color})
+            self.assertEqual(appearance.style.lookup("TFrame", "background"), appearance.colors.surface)
+            for (photo, _), (_, dark), (_, light) in zip(appearance._skin_sources["_fade"],
+                                                        appearance._skin_sources["dark"], appearance._skin_sources["light"]):
+                if dark.width <= 100 or dark.height <= 20:
+                    continue
+                xy = dark.width//2, dark.height//2
+                expected = tuple(round(a*(1-amount)+b*amount) for a, b in zip(dark.getpixel(xy), light.getpixel(xy)))
+                self.assertEqual(photo.photo.get(*xy), expected)
+
+    def test_page_selection_uses_one_reversible_thumb_and_preserves_page_data(self):
+        app = self._show()
+        nav = app.navigation
+        nav.motion_enabled = True
+        app.h_min_var.set("-30")
+        app.log_message("keep page log")
+        nav.select("logs")
+        self.assertEqual(app.page_var.get(), "logs")
+        self.assertIsNotNone(nav.timer_id)
+        nav.after_cancel(nav.timer_id)
+        nav.timer_id = None
+        with patch("vrlab2gif.sliding_segments.time.perf_counter", return_value=nav.last_time+.04):
+            nav._tick()
+        before = nav.position, nav.velocity
+        self.assertGreater(before[0], 0)
+        self.assertLess(before[0], 2)
+        nav.select("settings")
+        self.assertEqual((nav.position, nav.velocity), before)
+        self.assertEqual(nav.target, 0)
+        nav.motion_enabled = False
+        nav.select("filters")
+        self.assertEqual(nav.position, 1)
+        self.assertIsNone(nav.timer_id)
+        self.assertIn("已设", nav.buttons["filters"].itemcget(nav.buttons["filters"].label, "text"))
+        self.assertEqual(app.h_min_var.get(), "-30")
+        self.assertIn("keep page log", app.log_text.get("1.0", "end"))
+
+    def test_page_selector_cancel_keyboard_shortcuts_and_destroy_cleanup(self):
+        app = self._show()
+        nav = app.navigation
+        nav.motion_enabled = False
+        logs = nav.buttons["logs"]
+        logs._press(SimpleNamespace(x=10, y=10))
+        self.assertEqual(nav.target, 2)
+        self.assertEqual(app.page_var.get(), "settings")
+        logs._release(SimpleNamespace(x=-1000, y=10))
+        self.assertEqual(nav.position, 0)
+        self.assertEqual(app.page_var.get(), "settings")
+        app.page_buttons["filters"].focus_force()
+        self.root.update()
+        app.page_buttons["filters"].event_generate("<KeyPress-Right>")
+        self.root.update()
+        self.assertEqual(app.page_var.get(), "logs")
+        self.assertEqual(nav.position, 2)
+        starts = []
+        self.root.bind("<Control-Return>", lambda event: starts.append("start"))
+        logs.event_generate("<Control-KeyPress-Return>")
+        self.root.update()
+        self.assertEqual(starts, ["start"])
+        nav.motion_enabled = True
+        nav.select("settings")
+        pending = nav.timer_id
+        self.assertIsNotNone(pending)
+        nav.destroy()
+        self.assertIsNone(nav.timer_id)
+        self.assertNotIn(pending, self.root.tk.call("after", "info"))
 
 
 if __name__ == "__main__":

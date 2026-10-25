@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from tkinter import font as tkfont, ttk
 
 from PIL import Image, ImageDraw, ImageTk
+from .palette_image import PaletteImage
 
 
 @dataclass(frozen=True)
@@ -154,8 +155,13 @@ class AppleAppearance:
         self.mode = mode
         self.transition.to(mode, animate=animate)
 
-    def _make_photo(self, image: Image.Image) -> ImageTk.PhotoImage:
-        photo = ImageTk.PhotoImage(image, master=self.root)
+    def _make_photo(self, image: Image.Image) -> ImageTk.PhotoImage | PaletteImage:
+        if self._building_skin == "_fade":
+            index = len(self._skin_sources["_fade"])
+            photo = PaletteImage(self.root, self._skin_sources["dark"][index][1],
+                                 self._skin_sources["light"][index][1])
+        else:
+            photo = ImageTk.PhotoImage(image, master=self.root)
         self.images.append(photo)
         self._skin_sources[self._building_skin].append((photo, image))
         return photo
@@ -163,7 +169,7 @@ class AppleAppearance:
     def _capture_style_colors(self):
         names = (".", "TFrame", "Window.TFrame", "TLabel", "Window.TLabel", "Title.TLabel",
                  "Subtitle.TLabel", "Section.TLabel", "Hint.TLabel", "Footer.TLabel",
-                 "Apple.TCheckbutton", "Apple.TRadiobutton", "Page.TRadiobutton",
+                 "Apple.TCheckbutton", "Apple.TRadiobutton",
                  "Primary.TButton", "Secondary.TButton", "Disclosure.TButton", "Apple.TEntry",
                  "Apple.Vertical.TScrollbar", "Page.Apple.Vertical.TScrollbar")
         return {name: (self.style.configure(name) or {}, self.style.map(name)) for name in names}
@@ -175,9 +181,8 @@ class AppleAppearance:
         if self.style.theme_use() != self._theme_names[skin]:
             self.style.theme_use(self._theme_names[skin])
         if not endpoint:
-            for (photo, _), (_, dark), (_, light) in zip(self._skin_sources["_fade"],
-                                                       self._skin_sources["dark"], self._skin_sources["light"]):
-                photo.paste(Image.blend(dark, light, amount))
+            for photo, _ in self._skin_sources["_fade"]:
+                photo.render(amount)
             for name, (dark_options, dark_maps) in self._style_colors["dark"].items():
                 light_options, light_maps = self._style_colors["light"][name]
                 is_color = lambda value: isinstance(value, str) and len(value) == 7 and value.startswith("#")
@@ -218,7 +223,6 @@ class AppleAppearance:
         self._entries()
         self._progress()
         self._option_controls()
-        self._page_tabs()
         self.style.layout("Apple.Vertical.TScrollbar", [
             ("Vertical.Scrollbar.trough", {"sticky": "ns", "children": [
                 ("Vertical.Scrollbar.thumb", {"expand": "1", "sticky": "nswe"}),
@@ -271,35 +275,6 @@ class AppleAppearance:
                                           (f"{kind}.label", {"sticky": "nsew"})]})])
             self.style.configure(style, background=c.surface, foreground=c.text, padding=(0, p(2)))
             self.style.map(style, background=[("active", c.surface)], foreground=[("disabled", c.disabled_text)])
-
-    def _page_tabs(self) -> None:
-        c, p = self.colors, self.px
-        track = c.surface if self.mode == "dark" else c.button
-        selection = c.button_hover if self.mode == "dark" else c.surface
-        normal, hover, pressed, selected, selected_pressed, focused, selected_focused = [self.rounded_image(
-            p(32), p(30), color, radius=p(8), background=track,
-            outline=c.entry_border if chosen and self.mode == "dark" else c.border if chosen else None,
-            focused=focus,
-        ) for color, chosen, focus in (
-            (track, False, False), (c.button if self.mode == "dark" else c.button_hover, False, False),
-            (c.button_pressed, False, False), (selection, True, False),
-            (c.button_pressed if self.mode == "dark" else c.entry, True, False),
-            (track, False, True), (selection, True, True),
-        )]
-        element = "Apple.Page.tab"
-        self.style.element_create(element, "image", normal,
-                                  ("selected", "pressed", selected_pressed), ("pressed", pressed),
-                                  ("selected", "focus", selected_focused), ("focus", focused),
-                                  ("selected", selected), ("active", hover),
-                                  border=p(10), padding=0, sticky="nsew")
-        self.style.layout("Page.TRadiobutton", [(element, {"sticky": "nsew", "children": [
-            ("Radiobutton.padding", {"sticky": "nsew", "children": [
-                ("Radiobutton.label", {"sticky": "nsew"}),
-            ]}),
-        ]})])
-        self.style.configure("Page.TRadiobutton", background=track, foreground=c.secondary,
-                             padding=(p(8), p(4)), anchor="center", width=0)
-        self.style.map("Page.TRadiobutton", foreground=[("selected", c.text), ("active", c.text)])
 
     def _native_titlebar(self, window: tk.Misc | None = None) -> None:
         if sys.platform != "win32":
@@ -376,7 +351,7 @@ class AppleAppearance:
             ("Disclosure", c.surface, c.button, c.button_hover, c.accent if self.mode == "light" else c.secondary),
         ):
             images = [self.rounded_image(
-                self.px(36), self.px(36), color, radius=self.px(10), focused=focus,
+                self.px(160), self.px(64), color, radius=self.px(10), focused=focus,
                 outline=c.entry_border if name == "Secondary" and self.mode == "light" and color != c.disabled_surface else None,
             ) for color, focus in ((normal, False), (hover, False), (pressed, False), (c.disabled_surface, False), (normal, True))]
             element = f"Apple.{name}.button"
@@ -384,7 +359,7 @@ class AppleAppearance:
                 element, "image", images[0],
                 ("disabled", images[3]), ("pressed", images[2]),
                 ("active", images[1]), ("focus", images[4]),
-                border=self.px(13), padding=0, sticky="nsew",
+                border=self.px(13), width=self.px(36), height=self.px(36), padding=0, sticky="nsew",
             )
             style_name = f"{name}.TButton"
             self.style.layout(style_name, [(element, {"sticky": "nsew", "children": [
@@ -401,7 +376,7 @@ class AppleAppearance:
     def _entries(self) -> None:
         c = self.colors
         images = [self.rounded_image(
-            self.px(32), self.px(32), color, radius=self.px(9),
+            self.px(160), self.px(64), color, radius=self.px(9),
             outline=outline, focused=focus,
         ) for color, outline, focus in (
             (c.entry, c.entry_border, False),
@@ -410,7 +385,7 @@ class AppleAppearance:
         )]
         self.style.element_create(
             "Apple.Entry.field", "image", images[0], ("disabled", images[2]),
-            ("focus", images[1]), border=self.px(11), padding=0, sticky="nsew",
+            ("focus", images[1]), border=self.px(11), width=self.px(32), height=self.px(32), padding=0, sticky="nsew",
         )
         self.style.layout("Apple.TEntry", [("Apple.Entry.field", {"sticky": "nsew", "children": [
             ("Entry.padding", {"sticky": "nsew", "children": [
@@ -431,12 +406,12 @@ class AppleAppearance:
         c = self.colors
         for name, color in (("trough", c.trough), ("pbar", c.primary)):
             image = self.rounded_image(
-                self.px(16), self.px(6), color, radius=self.px(3),
+                self.px(160), self.px(6), color, radius=self.px(3),
                 background=c.surface if name == "trough" else c.trough,
             )
             self.style.element_create(
                 f"Apple.Progress.{name}", "image", image,
-                border=self.px(3), padding=0, sticky="nsew",
+                border=self.px(3), width=self.px(16), height=self.px(6), padding=0, sticky="nsew",
             )
         self.style.layout("Apple.Horizontal.TProgressbar", [
             ("Apple.Progress.trough", {"sticky": "nsew", "children": [
@@ -444,63 +419,7 @@ class AppleAppearance:
             ]}),
         ])
 
-class SegmentedPages(tk.Canvas):
-    """One shared navigation track around native, keyboard-accessible radio buttons."""
-
-    def __init__(self, parent: tk.Misc, appearance: AppleAppearance,
-                 variable: tk.StringVar, choices: list[tuple[str, str | tk.StringVar]],
-                 command: Callable[[str], None]) -> None:
-        super().__init__(parent, height=appearance.px(36), width=appearance.px(440),
-                         highlightthickness=0, borderwidth=0,
-                         background=appearance.colors.background)
-        self.appearance = appearance
-        self.buttons: dict[str, ttk.Radiobutton] = {}
-        self._windows: list[int] = []
-        self._image = self.create_image(0, 0, anchor="nw")
-        self._photo: ImageTk.PhotoImage | None = None
-        self._size = None
-        for name, label in choices:
-            options = {"textvariable": label} if isinstance(label, tk.StringVar) else {"text": label}
-            button = ttk.Radiobutton(self, **options, variable=variable, value=name,
-                                     command=lambda key=name: command(key),
-                                     style="Page.TRadiobutton", takefocus=True)
-            self.buttons[name] = button
-            self._windows.append(self.create_window(0, 0, window=button))
-        self.bind("<Configure>", lambda event: self._layout())
-        appearance.subscribe(self._recolor)
-
-    def _recolor(self) -> None:
-        self.configure(background=self.appearance.colors.background)
-        self._layout(repaint=True)
-
-    def _layout(self, *, repaint=False) -> None:
-        p, c = self.appearance.px, self.appearance.colors
-        width, height = min(self.winfo_width(), p(440)), self.winfo_height()
-        if min(width, height) < 4:
-            return
-        if self._size != (width, height):
-            self._size = (width, height)
-            factor = 3
-            self._rasters = []
-            for mode, palette in PALETTES.items():
-                image = Image.new("RGB", (width * factor, height * factor), palette.background)
-                ImageDraw.Draw(image).rounded_rectangle((0, 0, width*factor-1, height*factor-1),
-                                       radius=p(11)*factor,
-                                       fill=palette.surface if mode == "dark" else palette.button,
-                                       outline=palette.border, width=factor)
-                self._rasters.append(image.resize((width, height), Image.Resampling.LANCZOS))
-            self._photo = ImageTk.PhotoImage(self._rasters[0], master=self)
-            self.itemconfigure(self._image, image=self._photo)
-            repaint = True
-        if repaint:
-            self._photo.paste(Image.blend(*self._rasters, self.appearance.blend))
-        inset, gap = p(3), p(2)
-        usable = width - 2 * inset
-        for index, window in enumerate(self._windows):
-            left = inset + round(index * usable / len(self._windows))
-            right = inset + round((index + 1) * usable / len(self._windows))
-            self.coords(window, (left + right) / 2, height / 2)
-            self.itemconfigure(window, width=max(1, right-left-gap), height=max(1, height-2*inset))
+from .sliding_segments import SlidingSegments as SegmentedPages
 
 
 class RoundedCard(tk.Frame):
@@ -543,11 +462,11 @@ class RoundedCard(tk.Frame):
                                       radius=radius, fill=c.surface, outline=c.border,
                                       width=factor if mode == "light" else 1)
                 self._rasters.append(image.resize((width, height), Image.Resampling.LANCZOS))
-            self._photo = ImageTk.PhotoImage(self._rasters[0], master=self)
+            self._photo = PaletteImage(self, *self._rasters)
             self.canvas.itemconfigure(self._image_id, image=self._photo)
             repaint = True
         if repaint:
-            self._photo.paste(Image.blend(*self._rasters, self.appearance.blend))
+            self._photo.render(self.appearance.blend)
 
 
 class ScrollArea(ttk.Frame):

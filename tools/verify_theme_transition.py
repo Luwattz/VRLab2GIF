@@ -56,6 +56,15 @@ def main():
                 assert max(abs(a-b) for a, b in zip(client_pixel, expected)) <= 2, (client_pixel, expected)
                 item["native_caption_matches_client_pixels"] = True
             picture.save(args.output / f"frame-{round(amount*100):03d}.png")
+            c = app.appearance.colors.surface
+            expected = tuple(int(c[i:i+2], 16) for i in (1, 3, 5))
+            card = app.settings_card
+            x = card.winfo_rootx()-bounds.left+app.appearance.px(5)
+            top = card.winfo_rooty()-bounds.top
+            flat_pixels = {picture.getpixel((x, top+y))[:3] for y in range(
+                app.appearance.px(20), card.winfo_height()-app.appearance.px(20))}
+            assert flat_pixels == {expected}, (flat_pixels, expected)
+            item["flat_panel_rows_match_native_color"] = True
             report["frames"].append(item)
         app.set_theme("dark")
         fade.motion_enabled = app.theme_switch.motion_enabled = True

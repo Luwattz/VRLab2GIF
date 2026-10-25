@@ -7,9 +7,10 @@ import time
 import tkinter as tk
 from collections.abc import Callable
 
-from PIL import Image, ImageDraw, ImageTk
+from PIL import Image, ImageDraw
 
 from .appearance import AppleAppearance, PALETTES
+from .palette_image import PaletteImage
 
 
 def system_motion_enabled() -> bool:
@@ -60,8 +61,8 @@ class ThemeSwitch(tk.Canvas):
                 self._surface(round(self.segment_width), self.height-2*self.inset,
                               p(8), selected, selected, transparent=True),
             )
-            self.assets[mode] = tuple(ImageTk.PhotoImage(image, master=self) for image in self._sources[mode])
-        self.assets["_fade"] = tuple(ImageTk.PhotoImage(image, master=self) for image in self._sources["dark"])
+        self.assets["_fade"] = tuple(PaletteImage(self, dark, light)
+                                     for dark, light in zip(self._sources["dark"], self._sources["light"]))
         self._refresh()
         appearance.subscribe(self._refresh)
         self.trace_id = variable.trace_add("write", self._value_changed)
@@ -91,7 +92,7 @@ class ThemeSwitch(tk.Canvas):
         c = self.appearance.colors
         self.configure(background=c.background)
         for photo, dark, light in zip(self.assets["_fade"], self._sources["dark"], self._sources["light"]):
-            photo.paste(Image.blend(dark, light, self.appearance.blend))
+            photo.render(self.appearance.blend)
         self.itemconfigure(self.thumb, image=self.assets["_fade"][2])
         self._draw_state()
         self._draw_position()
