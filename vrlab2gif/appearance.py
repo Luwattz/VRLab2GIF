@@ -103,6 +103,10 @@ class AppleAppearance:
         self._observers: list[Callable[[], None]] = []
         self._built_modes: set[str] = set()
         self._theme_names = {mode: f"VRLab{id(self):x}.{mode}" for mode in PALETTES}
+        self._theme_names["_fade"] = f"VRLab{id(self):x}._fade"
+        self._skin_sources = {mode: [] for mode in self._theme_names}
+        self._style_colors = {}
+        self.blend = 0.0
         self.mode = ""
         self.colors = PALETTES["dark"]
         self.style = ttk.Style(root)
@@ -120,29 +124,81 @@ class AppleAppearance:
         self.section_font = self.font(family, 11, "bold")
         self.hint_font = self.font(family, 9)
         self.footer_font = self.font(family, 8)
-        self.set_mode("dark")
+        # Build skins once before showing the window. Animated frames only
+        # recolor existing images/styles, never recreate controls or themes.
+        for mode in ("dark", "light", "_fade"):
+            self.mode = "dark" if mode == "_fade" else mode
+            self.colors = PALETTES[self.mode]
+            self._building_skin = mode
+            self.style.theme_create(self._theme_names[mode], parent="clam")
+            self.style.theme_use(self._theme_names[mode])
+            self._configure_styles()
+            self._built_modes.add(mode)
+            if mode != "_fade":
+                self._style_colors[mode] = self._capture_style_colors()
+        self.mode, self.colors = "dark", PALETTES["dark"]
+        self.style.theme_use(self._theme_names["dark"])
+        root.configure(background=self.colors.background)
+        from .theme_transition import ThemeTransition
+        self.transition = ThemeTransition(self)
         root.bind("<Map>", self._on_map, add="+")
 
     def subscribe(self, callback: Callable[[], None]) -> None:
         self._observers.append(callback)
 
-    def set_mode(self, mode: str) -> None:
+    def set_mode(self, mode: str, *, animate=False) -> None:
         if mode not in PALETTES:
             raise ValueError(f"Unknown appearance: {mode}")
-        if mode == self.mode:
+        if mode == self.mode and self.blend == float(mode == "light") and self.transition.timer_id is None:
             return
-        self.mode, self.colors = mode, PALETTES[mode]
-        if mode not in self._built_modes:
-            # Keep separate cached ttk themes so repeated switching never creates
-            # duplicate elements or discards images used by an existing theme.
-            self.style.theme_create(self._theme_names[mode], parent="clam")
-            self.style.theme_use(self._theme_names[mode])
-            self._configure_styles()
-            self._built_modes.add(mode)
-        else:
-            self.style.theme_use(self._theme_names[mode])
-        self.root.configure(background=self.colors.background)
-        self._native_titlebar()
+        self.mode = mode
+        self.transition.to(mode, animate=animate)
+
+    def _make_photo(self, image: Image.Image) -> ImageTk.PhotoImage:
+        photo = ImageTk.PhotoImage(image, master=self.root)
+        self.images.append(photo)
+        self._skin_sources[self._building_skin].append((photo, image))
+        return photo
+
+    def _capture_style_colors(self):
+        names = (".", "TFrame", "Window.TFrame", "TLabel", "Window.TLabel", "Title.TLabel",
+                 "Subtitle.TLabel", "Section.TLabel", "Hint.TLabel", "Footer.TLabel",
+                 "Apple.TCheckbutton", "Apple.TRadiobutton", "Page.TRadiobutton",
+                 "Primary.TButton", "Secondary.TButton", "Disclosure.TButton", "Apple.TEntry",
+                 "Apple.Vertical.TScrollbar", "Page.Apple.Vertical.TScrollbar")
+        return {name: (self.style.configure(name) or {}, self.style.map(name)) for name in names}
+
+    def _present(self, colors: Palette, amount: float, *, endpoint=False):
+        from .theme_transition import blend_color
+        self.colors, self.blend = colors, amount
+        skin = self.mode if endpoint else "_fade"
+        if self.style.theme_use() != self._theme_names[skin]:
+            self.style.theme_use(self._theme_names[skin])
+        if not endpoint:
+            for (photo, _), (_, dark), (_, light) in zip(self._skin_sources["_fade"],
+                                                       self._skin_sources["dark"], self._skin_sources["light"]):
+                photo.paste(Image.blend(dark, light, amount))
+            for name, (dark_options, dark_maps) in self._style_colors["dark"].items():
+                light_options, light_maps = self._style_colors["light"][name]
+                is_color = lambda value: isinstance(value, str) and len(value) == 7 and value.startswith("#")
+                options = {key: blend_color(value, light_options[key], amount)
+                           for key, value in dark_options.items()
+                           if is_color(value) and is_color(light_options.get(key))}
+                if options:
+                    self.style.configure(name, **options)
+                for key, states in dark_maps.items():
+                    other = light_maps.get(key, [])
+                    if len(states) == len(other) and states and all(is_color(a[-1]) and is_color(b[-1]) for a, b in zip(states, other)):
+                        self.style.map(name, **{key: [(*a[:-1], blend_color(a[-1], b[-1], amount)) for a, b in zip(states, other)]})
+        # DWM caption and client widgets consume exactly the same frame palette.
+        def windows(widget):
+            if isinstance(widget, (tk.Tk, tk.Toplevel)):
+                widget.configure(background=colors.background)
+                self._native_titlebar(widget)
+            for child in widget.winfo_children():
+                if isinstance(child, (tk.Toplevel, ttk.Frame)):
+                    windows(child)
+        windows(self.root)
         for callback in tuple(self._observers):
             callback()
 
@@ -203,9 +259,8 @@ class AppleAppearance:
                     if selected:
                         draw.line([(p(6)*factor, p(10)*factor), (p(9)*factor, p(13)*factor),
                                    (p(14)*factor, p(7)*factor)], fill="#ffffff", width=p(2)*factor)
-                photo = ImageTk.PhotoImage(image.resize((size, size), Image.Resampling.LANCZOS), master=self.root)
+                photo = self._make_photo(image.resize((size, size), Image.Resampling.LANCZOS))
                 images.append(photo)
-                self.images.append(photo)
             element = f"Apple.{kind}.option"
             self.style.element_create(element, "image", images[0], ("disabled", images[4]),
                                       ("selected", "focus", images[3]), ("focus", images[2]),
@@ -260,10 +315,26 @@ class AppleAppearance:
             set_attribute = ctypes.windll.dwmapi.DwmSetWindowAttribute
             set_attribute.argtypes = [wintypes.HWND, wintypes.DWORD, ctypes.c_void_p, wintypes.DWORD]
             set_attribute.restype = ctypes.c_long
-            value = ctypes.c_int(self.mode == "dark")
-            for attribute in (20, 19):
-                if set_attribute(hwnd, attribute, ctypes.byref(value), ctypes.sizeof(value)) == 0:
-                    break
+            c = self.colors
+            dark = sum(int(c.background[i:i+2], 16) * weight for i, weight in ((1, .2126), (3, .7152), (5, .0722))) < 128
+            state = (hwnd, dark, c.background, c.text)
+            previous = getattr(target, "_vrlab_titlebar_state", None)
+            if state == previous:
+                return
+            if previous is None or previous[:2] != state[:2]:
+                value = wintypes.BOOL(dark)
+                for attribute in (20, 19):
+                    if set_attribute(hwnd, attribute, ctypes.byref(value), ctypes.sizeof(value)) >= 0:
+                        break
+            if previous is None or previous[0] != hwnd:
+                target._vrlab_caption_colors_supported = None
+            if target._vrlab_caption_colors_supported is not False:
+                results = []
+                for attribute, color in ((35, c.background), (36, c.text)):
+                    value = wintypes.DWORD(sum(int(color[i:i+2], 16) << (8*index) for index, i in enumerate((1, 3, 5))))
+                    results.append(set_attribute(hwnd, attribute, ctypes.byref(value), ctypes.sizeof(value)))
+                target._vrlab_caption_colors_supported = all(result >= 0 for result in results)
+            target._vrlab_titlebar_state = state
         except (AttributeError, OSError):
             # Client-area theming still works on systems without this DWM option.
             pass
@@ -295,9 +366,7 @@ class AppleAppearance:
             radius=max(1, radius - inset) * factor, fill=fill,
             outline=outline, width=factor,
         )
-        photo = ImageTk.PhotoImage(image.resize((width, height), Image.Resampling.LANCZOS), master=self.root)
-        self.images.append(photo)
-        return photo
+        return self._make_photo(image.resize((width, height), Image.Resampling.LANCZOS))
 
     def _buttons(self) -> None:
         c = self.colors
@@ -402,10 +471,9 @@ class SegmentedPages(tk.Canvas):
 
     def _recolor(self) -> None:
         self.configure(background=self.appearance.colors.background)
-        self._size = None
-        self._layout()
+        self._layout(repaint=True)
 
-    def _layout(self) -> None:
+    def _layout(self, *, repaint=False) -> None:
         p, c = self.appearance.px, self.appearance.colors
         width, height = min(self.winfo_width(), p(440)), self.winfo_height()
         if min(width, height) < 4:
@@ -413,14 +481,19 @@ class SegmentedPages(tk.Canvas):
         if self._size != (width, height):
             self._size = (width, height)
             factor = 3
-            image = Image.new("RGB", (width * factor, height * factor), c.background)
-            draw = ImageDraw.Draw(image)
-            draw.rounded_rectangle((0, 0, width*factor-1, height*factor-1),
-                                   radius=p(11)*factor,
-                                   fill=c.surface if self.appearance.mode == "dark" else c.button,
-                                   outline=c.border, width=factor)
-            self._photo = ImageTk.PhotoImage(image.resize((width, height), Image.Resampling.LANCZOS), master=self)
+            self._rasters = []
+            for mode, palette in PALETTES.items():
+                image = Image.new("RGB", (width * factor, height * factor), palette.background)
+                ImageDraw.Draw(image).rounded_rectangle((0, 0, width*factor-1, height*factor-1),
+                                       radius=p(11)*factor,
+                                       fill=palette.surface if mode == "dark" else palette.button,
+                                       outline=palette.border, width=factor)
+                self._rasters.append(image.resize((width, height), Image.Resampling.LANCZOS))
+            self._photo = ImageTk.PhotoImage(self._rasters[0], master=self)
             self.itemconfigure(self._image, image=self._photo)
+            repaint = True
+        if repaint:
+            self._photo.paste(Image.blend(*self._rasters, self.appearance.blend))
         inset, gap = p(3), p(2)
         usable = width - 2 * inset
         for index, window in enumerate(self._windows):
@@ -452,26 +525,29 @@ class RoundedCard(tk.Frame):
     def _recolor(self) -> None:
         self.configure(background=self.appearance.colors.background)
         self.canvas.configure(background=self.appearance.colors.background)
-        self._size = (0, 0)
-        self._draw(self.winfo_width(), self.winfo_height())
+        self._draw(self.winfo_width(), self.winfo_height(), repaint=True)
 
-    def _draw(self, width: int, height: int) -> None:
-        if self._size == (width, height) or min(width, height) < 4:
+    def _draw(self, width: int, height: int, *, repaint=False) -> None:
+        if min(width, height) < 4:
             return
-        self._size = (width, height)
-        factor = 2
-        c = self.appearance.colors
-        image = Image.new("RGB", (width * factor, height * factor), c.background)
-        draw = ImageDraw.Draw(image)
-        radius = self.appearance.px(16) * factor
-        draw.rounded_rectangle((factor, factor * 2, (width - 1) * factor, height * factor - 1), radius=radius, fill=c.shadow)
-        draw.rounded_rectangle(
-            (factor, 0, (width - 1) * factor, (height - 2) * factor),
-            radius=radius, fill=c.surface, outline=c.border,
-            width=factor if self.appearance.mode == "light" else 1,
-        )
-        self._photo = ImageTk.PhotoImage(image.resize((width, height), Image.Resampling.LANCZOS), master=self)
-        self.canvas.itemconfigure(self._image_id, image=self._photo)
+        if self._size != (width, height):
+            self._size = (width, height)
+            factor = 2
+            self._rasters = []
+            for mode, c in PALETTES.items():
+                image = Image.new("RGB", (width * factor, height * factor), c.background)
+                draw = ImageDraw.Draw(image)
+                radius = self.appearance.px(16) * factor
+                draw.rounded_rectangle((factor, factor * 2, (width - 1) * factor, height * factor - 1), radius=radius, fill=c.shadow)
+                draw.rounded_rectangle((factor, 0, (width - 1) * factor, (height - 2) * factor),
+                                      radius=radius, fill=c.surface, outline=c.border,
+                                      width=factor if mode == "light" else 1)
+                self._rasters.append(image.resize((width, height), Image.Resampling.LANCZOS))
+            self._photo = ImageTk.PhotoImage(self._rasters[0], master=self)
+            self.canvas.itemconfigure(self._image_id, image=self._photo)
+            repaint = True
+        if repaint:
+            self._photo.paste(Image.blend(*self._rasters, self.appearance.blend))
 
 
 class ScrollArea(ttk.Frame):

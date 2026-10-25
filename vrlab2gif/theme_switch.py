@@ -9,7 +9,7 @@ from collections.abc import Callable
 
 from PIL import Image, ImageDraw, ImageTk
 
-from .appearance import AppleAppearance
+from .appearance import AppleAppearance, PALETTES
 
 
 def system_motion_enabled() -> bool:
@@ -28,7 +28,7 @@ class ThemeSwitch(tk.Canvas):
     """Fixed labels and an interruptible selection pill; no changes to app data."""
 
     def __init__(self, parent, appearance: AppleAppearance, variable: tk.BooleanVar,
-                 command: Callable[[], None]) -> None:
+                 command: Callable[..., None]) -> None:
         p = appearance.px
         self.width, self.height, self.inset = p(132), p(34), p(3)
         self.segment_width = (self.width - 2 * self.inset) / 2
@@ -43,6 +43,7 @@ class ThemeSwitch(tk.Canvas):
         self.focused = False
         self._animate = True
         self.assets = {}
+        self._sources = {}
         self.track = self.create_image(0, 0, anchor="nw")
         self.thumb = self.create_image(self.inset, self.inset, anchor="nw")
         self.labels = {
@@ -50,6 +51,17 @@ class ThemeSwitch(tk.Canvas):
                                    self.height / 2, text=mode.title(), font=appearance.hint_font)
             for index, mode in enumerate(("dark", "light"))
         }
+        for mode, c in PALETTES.items():
+            track = "#2a2a2f" if mode == "dark" else "#e8e8ed"
+            selected = "#50505b" if mode == "dark" else "#ffffff"
+            self._sources[mode] = (
+                self._surface(self.width, self.height, p(11), track, c.border, background=c.background),
+                self._surface(self.width, self.height, p(11), track, c.accent, background=c.background),
+                self._surface(round(self.segment_width), self.height-2*self.inset,
+                              p(8), selected, selected, transparent=True),
+            )
+            self.assets[mode] = tuple(ImageTk.PhotoImage(image, master=self) for image in self._sources[mode])
+        self.assets["_fade"] = tuple(ImageTk.PhotoImage(image, master=self) for image in self._sources["dark"])
         self._refresh()
         appearance.subscribe(self._refresh)
         self.trace_id = variable.trace_add("write", self._value_changed)
@@ -65,36 +77,28 @@ class ThemeSwitch(tk.Canvas):
         self.bind("<Control-Return>", lambda event: None)
         self.bind("<Destroy>", self._destroy)
 
-    def _surface(self, width, height, radius, fill, border, *, transparent=False):
+    def _surface(self, width, height, radius, fill, border, *, transparent=False, background=None):
         factor = 3
         image = Image.new("RGBA", (width * factor, height * factor),
-                          (0, 0, 0, 0) if transparent else self.appearance.colors.background)
+                          (0, 0, 0, 0) if transparent else background)
         ImageDraw.Draw(image).rounded_rectangle(
             (0, 0, width * factor - 1, height * factor - 1), radius=radius * factor,
             fill=fill, outline=border, width=factor,
         )
-        return ImageTk.PhotoImage(image.resize((width, height), Image.Resampling.LANCZOS), master=self)
+        return image.resize((width, height), Image.Resampling.LANCZOS)
 
     def _refresh(self):
-        c, p = self.appearance.colors, self.appearance.px
+        c = self.appearance.colors
         self.configure(background=c.background)
-        mode = self.appearance.mode
-        if mode not in self.assets:
-            track = "#2a2a2f" if mode == "dark" else "#e8e8ed"
-            selected = "#50505b" if mode == "dark" else "#ffffff"
-            self.assets[mode] = (
-                self._surface(self.width, self.height, p(11), track, c.border),
-                self._surface(self.width, self.height, p(11), track, c.accent),
-                self._surface(round(self.segment_width), self.height - 2 * self.inset,
-                              p(8), selected, selected, transparent=True),
-            )
-        self.itemconfigure(self.thumb, image=self.assets[mode][2])
+        for photo, dark, light in zip(self.assets["_fade"], self._sources["dark"], self._sources["light"]):
+            photo.paste(Image.blend(dark, light, self.appearance.blend))
+        self.itemconfigure(self.thumb, image=self.assets["_fade"][2])
         self._draw_state()
         self._draw_position()
 
     def _draw_state(self):
         c = self.appearance.colors
-        self.itemconfigure(self.track, image=self.assets[self.appearance.mode][int(self.focused)])
+        self.itemconfigure(self.track, image=self.assets["_fade"][int(self.focused)])
         selected = self.pressed_mode or ("dark" if self.variable.get() else "light")
         for mode, label in self.labels.items():
             self.itemconfigure(label, fill=c.text if mode == selected else c.secondary)
@@ -137,7 +141,7 @@ class ThemeSwitch(tk.Canvas):
         try:
             if self.variable.get() != (mode == "dark"):
                 self.variable.set(mode == "dark")
-                self.command()
+                self.command(animate=animate and self.motion_enabled)
             else:
                 self._retarget(float(mode == "light"), animate)
         finally:

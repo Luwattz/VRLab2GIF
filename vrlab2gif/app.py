@@ -97,14 +97,16 @@ class GifCreatorApp:
     def _configure_style(self) -> None:
         self.appearance = AppleAppearance(self.root)
 
-    def set_theme(self, mode: str) -> None:
-        self.appearance.set_mode(mode)
+    def set_theme(self, mode: str, *, animate=False) -> None:
+        self.appearance.set_mode(mode, animate=animate)
         if self.dark_mode_var.get() != (mode == "dark"):
             self.dark_mode_var.set(mode == "dark")
         self.theme_label_var.set("Dark" if mode == "dark" else "Light")
+        if not animate:
+            self.theme_switch._retarget(float(mode == "light"), animate=False)
 
-    def toggle_theme(self) -> None:
-        self.set_theme("dark" if self.dark_mode_var.get() else "light")
+    def toggle_theme(self, *, animate=True) -> None:
+        self.set_theme("dark" if self.dark_mode_var.get() else "light", animate=animate)
 
     def _set_status_tone(self, tone: str) -> None:
         self._status_tone = tone

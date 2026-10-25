@@ -10,7 +10,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from vrlab2gif.app import GifCreatorApp
-from vrlab2gif.appearance import enable_dpi_awareness
+from vrlab2gif.appearance import enable_dpi_awareness, PALETTES
 from vrlab2gif import __version__
 
 
@@ -308,6 +308,8 @@ class AppearanceUsabilityTests(unittest.TestCase):
         switch.select("light")
         self.assertEqual(switch.position, 1)
         self.assertIsNone(switch.timer_id)
+        self.assertEqual(app.appearance.colors, PALETTES["light"])
+        self.assertIsNone(app.appearance.transition.timer_id)
         switch.motion_enabled = True
         switch.select("dark")
         timer_id = switch.timer_id
@@ -315,6 +317,96 @@ class AppearanceUsabilityTests(unittest.TestCase):
         switch.destroy()
         self.assertIsNone(switch.timer_id)
         self.assertNotIn(timer_id, self.root.tk.call("after", "info"))
+
+    def test_theme_fade_uses_one_current_palette_without_new_images_or_widgets(self):
+        app = self._show()
+        fade = app.appearance.transition
+        fade.motion_enabled = app.theme_switch.motion_enabled = True
+        app.delay_var.set("420")
+        app.log_message("keep this log")
+        app._set_processing(True)
+        app.progress_var.set(37)
+        before = (app.input_entry, app.start_button, app.delay_var.get(),
+                  app.log_text.get("1.0", "end"), self.root.winfo_width(), self.root.winfo_height())
+        app.theme_switch.select("light")
+        self.assertEqual(self.root.cget("background"), PALETTES["dark"].background)
+        fade.cancel()
+        images = set(self.root.tk.call("image", "names"))
+        with patch("vrlab2gif.appearance.ImageTk.PhotoImage", side_effect=AssertionError("new frame image")), \
+                patch.object(app.appearance.style, "theme_create", side_effect=AssertionError("new frame theme")), \
+                patch.object(app.appearance, "_native_titlebar") as caption:
+            for amount in (.15, .35, .55, .75):
+                fade.render(amount)
+                self.root.update_idletasks()
+                colors = app.appearance.colors
+                self.assertNotIn(colors.background, (PALETTES["dark"].background, PALETTES["light"].background))
+                self.assertEqual(self.root.cget("background"), colors.background)
+                self.assertEqual(app.settings_card.canvas.cget("background"), colors.background)
+                self.assertEqual(app.log_text.cget("background"), colors.surface)
+                self.assertEqual(app.theme_switch.cget("background"), colors.background)
+                caption.assert_called_with(self.root)
+        self.assertEqual(set(self.root.tk.call("image", "names")), images)
+        self.assertEqual((app.input_entry, app.start_button, app.delay_var.get(),
+                          app.log_text.get("1.0", "end"), self.root.winfo_width(), self.root.winfo_height()), before)
+        self.assertTrue(app._processing)
+        self.assertTrue(app.start_button.instate(["disabled"]))
+        self.assertEqual(app.progress_var.get(), 37)
+        app._set_processing(False)
+
+    def test_theme_fade_reversal_preserves_current_brightness_and_cached_endpoints(self):
+        app = self._show()
+        fade = app.appearance.transition
+        fade.motion_enabled = app.theme_switch.motion_enabled = True
+        app.theme_switch.select("light")
+        fade.cancel()
+        fade.render(.65)
+        fade.velocity = .4
+        before = app.appearance.colors
+        app.theme_switch.select("dark")
+        self.assertEqual(fade.alpha, .65)
+        self.assertEqual(fade.velocity, .4)
+        self.assertEqual(app.appearance.colors, before)
+        self.assertEqual(self.root.cget("background"), before.background)
+        self.assertEqual(fade.target, 0)
+        fade.cancel()
+        for mode in ("light", "dark", "light", "dark"):
+            app.set_theme(mode)
+            self.assertEqual(app.appearance.colors, PALETTES[mode])
+            self.assertEqual(app.appearance.style.lookup("Window.TFrame", "background"), PALETTES[mode].background)
+            self.assertIsNone(fade.timer_id)
+        app.theme_switch.select("light")
+        pending = fade.timer_id
+        self.assertIsNotNone(pending)
+        app.on_close()
+        self.assertIsNone(fade.timer_id)
+
+    @unittest.skipUnless(__import__("sys").platform == "win32", "Windows native caption attributes")
+    def test_native_caption_colors_match_current_frame_and_old_windows_fallback_is_cached(self):
+        import ctypes
+        from ctypes import wintypes
+        app = self._show()
+        self.root._vrlab_titlebar_state = None
+        calls = []
+
+        def set_attribute(hwnd, attribute, pointer, size):
+            calls.append((attribute, ctypes.cast(pointer, ctypes.POINTER(wintypes.DWORD)).contents.value))
+            return 0
+
+        with patch("ctypes.windll.dwmapi.DwmSetWindowAttribute", side_effect=set_attribute):
+            app.appearance.transition.render(.4)
+        colors = app.appearance.colors
+        colorref = lambda color: sum(int(color[i:i+2], 16) << (8*index) for index, i in enumerate((1, 3, 5)))
+        self.assertIn((35, colorref(colors.background)), calls)
+        self.assertIn((36, colorref(colors.text)), calls)
+        # Unsupported caption-color attributes are attempted once, while the
+        # native dark/light caption-button fallback remains available.
+        self.root._vrlab_titlebar_state = None
+        calls.clear()
+        with patch("ctypes.windll.dwmapi.DwmSetWindowAttribute", side_effect=lambda *args: -1 if args[1] in (35, 36) else 0) as api:
+            app.appearance.transition.render(.2)
+            app.appearance.transition.render(.3)
+            self.assertEqual(sum(call.args[1] == 35 for call in api.call_args_list), 1)
+            self.assertEqual(sum(call.args[1] == 36 for call in api.call_args_list), 1)
 
 
 if __name__ == "__main__":

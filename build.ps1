@@ -74,6 +74,7 @@ try {
     Copy-Item -LiteralPath "docs\angle-filters.png", "docs\runtime-logs.png" -Destination $releaseDocs -Force
     Copy-Item -LiteralPath "docs\fonts.md" -Destination $releaseDocs -Force
     Copy-Item -LiteralPath "docs\observer-angles.md" -Destination $releaseDocs -Force
+    Copy-Item -LiteralPath "docs\theme-transition.md" -Destination $releaseDocs -Force
     Copy-Item -LiteralPath "docs\ppt-export.md", "docs\ppt-export-dark.png", "docs\ppt-export-light.png" -Destination $releaseDocs -Force
     $releaseNotices = Join-Path $releaseDocs "third-party"
     New-Item -ItemType Directory -Path $releaseNotices -Force | Out-Null
