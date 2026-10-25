@@ -1,4 +1,4 @@
-Virtual Reality Lab 视角合成器 1.2.0
+Virtual Reality Lab 视角合成器 1.2.1
 Copyright © Intelligent Efficiency Team
 开发公司：Intelligent Efficiency Team
 
@@ -40,7 +40,9 @@ GIF 生成成功后，点击底部“导出 PPT…”。可填写标题、页脚
 Arial 常规体和原生拖放组件均内嵌在 EXE 中，无需额外安装。
 默认角度文字为 24 px 白字黑描边，可调整字号；界面自身使用系统字体。
 
-默认 Dark，右上角可切换 Light；切换保留参数、日志和进度。
+默认 Dark，右上角改为 ACT-WBEX-Updater 同款 Dark / Light 分段按钮。
+两个标签始终显示，选中块滑动；切换保留参数、日志和进度。
+聚焦后用左右键或 Home/End 选择，空格或 Enter 切换。关闭 Windows 动画后立即切换。
 窗口约 700×450（100% 缩放），默认显示生成设置页，底部操作始终可见。
 Tab 切换控件，空格激活按钮，Ctrl+Enter 开始，Esc 取消。
 

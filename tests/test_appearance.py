@@ -6,6 +6,8 @@ import tkinter as tk
 from tkinterdnd2 import TkinterDnD
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from vrlab2gif.app import GifCreatorApp
 from vrlab2gif.appearance import enable_dpi_awareness
@@ -245,6 +247,68 @@ class AppearanceUsabilityTests(unittest.TestCase):
         self.assertEqual(app.appearance.mode, "light")
         self.assertFalse(app.dark_mode_var.get())
         self.assertIsNone(app._worker)
+
+    def test_theme_segments_support_direct_choice_and_cancelled_press(self) -> None:
+        app = self._show()
+        switch = app.theme_switch
+        switch.motion_enabled = False
+        self.assertEqual({switch.itemcget(label, "text") for label in switch.labels.values()}, {"Dark", "Light"})
+        switch._press(SimpleNamespace(x=switch.width - 8, y=8))
+        self.assertEqual(switch.target, 1)
+        self.assertEqual(app.appearance.mode, "dark", "Press feedback must not commit the theme")
+        switch._release(SimpleNamespace(x=-8, y=8))
+        self.assertEqual(switch.position, 0)
+        self.assertEqual(app.appearance.mode, "dark")
+        switch._press(SimpleNamespace(x=switch.width - 8, y=8))
+        switch._release(SimpleNamespace(x=switch.width - 8, y=8))
+        self.assertEqual(app.appearance.mode, "light")
+        self.assertEqual(switch.position, 1)
+        switch._key("dark")
+        self.assertEqual(app.appearance.mode, "dark")
+        self.assertEqual(switch.position, 0)
+        self.assertIsNone(switch.timer_id)
+
+    def test_theme_selection_animation_keeps_velocity_on_reversal_and_reuses_assets(self) -> None:
+        app = self._show()
+        switch = app.theme_switch
+        switch.motion_enabled = True
+        switch.select("light")
+        self.assertIsNotNone(switch.timer_id)
+        switch.after_cancel(switch.timer_id)
+        switch.timer_id = None
+        with patch("vrlab2gif.theme_switch.time.perf_counter", return_value=switch.last_time + .04):
+            switch._tick()
+        before = switch.position, switch.velocity
+        self.assertGreater(before[0], 0)
+        self.assertLess(before[0], 1)
+        self.assertGreater(before[1], 0)
+        switch.select("dark")
+        self.assertEqual((switch.position, switch.velocity), before)
+        self.assertEqual(switch.target, 0)
+        assets = dict(switch.assets)
+        images = {str(image) for palette in switch.assets.values() for image in palette}
+        for mode in ("light", "dark", "light", "dark"):
+            switch.select(mode, animate=False)
+        self.assertEqual(switch.assets, assets)
+        self.assertEqual({str(image) for palette in switch.assets.values() for image in palette}, images)
+        self.assertTrue(images.issubset(set(self.root.tk.call("image", "names"))))
+        self.assertEqual(switch.position, 0)
+        self.assertIsNone(switch.timer_id)
+
+    def test_reduced_motion_and_destroy_remove_pending_theme_callbacks(self) -> None:
+        with patch("vrlab2gif.theme_switch.system_motion_enabled", return_value=False):
+            app = self._show()
+        switch = app.theme_switch
+        switch.select("light")
+        self.assertEqual(switch.position, 1)
+        self.assertIsNone(switch.timer_id)
+        switch.motion_enabled = True
+        switch.select("dark")
+        timer_id = switch.timer_id
+        self.assertIsNotNone(timer_id)
+        switch.destroy()
+        self.assertIsNone(switch.timer_id)
+        self.assertNotIn(timer_id, self.root.tk.call("after", "info"))
 
 
 if __name__ == "__main__":

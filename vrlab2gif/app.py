@@ -22,6 +22,7 @@ from .native import NATIVE_EXTENSIONS, create_native_gifs, validate_native_sourc
 from .ppt import PptOptions, export_gifs_to_pptx
 from .ppt_dialog import PptExportDialog, PptExportRequest, suggested_ppt_path
 from .appearance import AppleAppearance, RoundedCard, ScrollArea, SegmentedPages, enable_dpi_awareness, window_work_area
+from .theme_switch import ThemeSwitch
 
 
 class GifCreatorApp:
@@ -98,7 +99,8 @@ class GifCreatorApp:
 
     def set_theme(self, mode: str) -> None:
         self.appearance.set_mode(mode)
-        self.dark_mode_var.set(mode == "dark")
+        if self.dark_mode_var.get() != (mode == "dark"):
+            self.dark_mode_var.set(mode == "dark")
         self.theme_label_var.set("Dark" if mode == "dark" else "Light")
 
     def toggle_theme(self) -> None:
@@ -167,13 +169,10 @@ class GifCreatorApp:
             [("settings", "生成设置"), ("filters", self.filter_tab_var), ("logs", "运行日志")],
             self.select_page,
         )
-        self.navigation.grid(row=1, column=text_column, sticky="ew", pady=(p(4), 0))
+        self.navigation.grid(row=1, column=text_column, columnspan=2, sticky="ew", pady=(p(4), 0))
         self.page_buttons = self.navigation.buttons
-        self.theme_switch = ttk.Checkbutton(
-            heading, textvariable=self.theme_label_var, variable=self.dark_mode_var,
-            command=self.toggle_theme, style="Theme.TCheckbutton", takefocus=True,
-        )
-        self.theme_switch.grid(row=0, column=text_column + 1, rowspan=2, sticky="e", padx=(p(8), 0))
+        self.theme_switch = ThemeSwitch(heading, self.appearance, self.dark_mode_var, self.toggle_theme)
+        self.theme_switch.grid(row=0, column=text_column + 1, sticky="e", padx=(p(8), 0))
 
         pages = ttk.Frame(main, style="Window.TFrame")
         pages.grid(row=1, column=0, sticky="nsew")

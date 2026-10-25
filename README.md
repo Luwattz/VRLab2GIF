@@ -1,6 +1,8 @@
 # Virtual Reality Lab 视角合成器
 
-**1.2.0**：从 `.OptisVR` / `.speos360` 直接生成 GIF，支持文件拖入、Dark/Light 主题、真实 H/V 角度标注及筛选、垂直角度分组和 PowerPoint 导出。PPT 首页展示全角度合集；版权、开发公司及默认页脚为 Intelligent Efficiency Team。
+**1.2.1**：右上角 Dark / Light 切换改为 ACT-WBEX-Updater 同款分段样式，两个标签固定显示，选中块平滑滑动，支持快速反向切换、按下取消及键盘操作，并遵循 Windows 减少动态效果设置。默认仍为 Dark。
+
+从 `.OptisVR` / `.speos360` 直接生成 GIF，支持文件拖入、真实 H/V 角度标注及筛选、垂直角度分组和 PowerPoint 导出。PPT 首页展示全角度合集；版权、开发公司及默认页脚为 Intelligent Efficiency Team。
 
 VRLab 2024 R1 的 COM 导出文件名使用索引，与手动菜单导出的角度文件名不同。本程序从已验证的源文件元数据恢复真实 H/V 角度，详见 [调查与验证](docs/observer-angles.md)。
 
@@ -12,7 +14,7 @@ VRLab 2024 R1 的 COM 导出文件名使用索引，与手动菜单导出的角�
 
 ## 使用
 
-正式版本位于 [GitHub Releases](https://github.com/Luwattz/VRLab2GIF/releases/latest)。下载 `VRLab2GIF.exe`，或下载包含说明文档的 `VRLab2GIF-Windows-x64.zip`。本地构建输出为 `dist/1.2.0/VRLab2GIF.exe`。无需安装 Python；单独复制 EXE 即可运行，Arial 与原生拖放组件均已内嵌。
+正式版本位于 [GitHub Releases](https://github.com/Luwattz/VRLab2GIF/releases/latest)。下载 `VRLab2GIF.exe`，或下载包含说明文档的 `VRLab2GIF-Windows-x64.zip`。本地构建输出为 `dist/1.2.1/VRLab2GIF.exe`。无需安装 Python；单独复制 EXE 即可运行，Arial 与原生拖放组件均已内嵌。
 
 1. 从资源管理器将一个 `.OptisVR` 或 `.speos360` 视角文件拖入程序窗口，也可以点击“选择文件…”或手动填写路径。
 2. 输出默认在源文件旁的 `文件名_GIF` 文件夹，可更改。自定义输出后，换输入文件会保留自定义位置。
@@ -45,6 +47,8 @@ GIF 最多 256 色，透明像素合成到黑色背景。延时为 10–655350 m
 
 同名 GIF 在完整写入临时文件后才替换。取消或关闭窗口时，已完成的 GIF 保留，未完成文件清理。默认显示生成设置页，底部操作始终可见；窗口保持约 700×450（100% 缩放），并随显示缩放调整。默认 Dark，右上角可切换 Light，切换保留页面、数据与进度。
 
+主题按钮参考本机 ACT-WBEX-Updater 的 132×34 分段按钮，使用固定 Dark / Light 标签与一个滑动选中块。Tab 可聚焦，左右键或 Home/End 直接选择，空格或 Enter 切换。按下即有反馈，移出按钮后松开会取消选择；动画可随时反向。系统关闭客户端区域动画时停止滑动，键盘选择立即完成。颜色和圆角适配本程序，未引入对 ACT 项目的运行依赖。
+
 ## 源码运行与打包
 
 需要 Python 3.10+（含 Tkinter）：
@@ -57,7 +61,7 @@ python main.py
 构建：
 
 ```powershell
-.\build.ps1 -OutputDirectory 'dist\1.2.0'
+.\build.ps1 -OutputDirectory 'dist\1.2.1'
 ```
 
 构建自动安装依赖、运行测试、检查字体与拖放桥接，然后生成单文件 EXE 和 ZIP。可用 `-Python 'C:\path\python.exe' -SkipInstall` 复用已配置环境。PyInstaller 包含 tkinterdnd2 的原生 Tk 扩展；字体缺失时构建会报错，详见 [字体资源说明](docs/fonts.md)。

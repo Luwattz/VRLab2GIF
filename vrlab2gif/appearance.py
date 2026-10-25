@@ -1,7 +1,7 @@
 """Apple-inspired surfaces around native, keyboard-operable Tk controls.
 
 Rounded graphics are drawn locally using system fonts. Dark and Light palettes
-cover every surface; switching adds no moving effects or artificial delay.
+cover every surface; the theme selector lives in theme_switch.py.
 """
 
 from __future__ import annotations
@@ -40,7 +40,6 @@ class Palette:
     scrollbar_hover: str
     success: str
     error: str
-    switch_off: str
 
 
 PALETTES = {
@@ -52,7 +51,7 @@ PALETTES = {
         entry="#1b1b1e", entry_border="#505058", disabled_surface="#2e2e33",
         disabled_text="#8d8d98", selection="#0b65bc", trough="#43434c",
         scrollbar="#696974", scrollbar_hover="#92929d", success="#80dca6",
-        error="#ffaaa3", switch_off="#51515c",
+        error="#ffaaa3",
     ),
     "light": Palette(
         background="#e8edf4", surface="#ffffff", text="#172335", secondary="#465268",
@@ -62,7 +61,7 @@ PALETTES = {
         entry="#f7f9fd", entry_border="#748398", disabled_surface="#edf0f5",
         disabled_text="#788395", selection="#0064c8", trough="#c4cddd",
         scrollbar="#8390a2", scrollbar_hover="#5c6c83", success="#24804b",
-        error="#b42318", switch_off="#7b8799",
+        error="#b42318",
     ),
 }
 
@@ -162,7 +161,6 @@ class AppleAppearance:
         self._buttons()
         self._entries()
         self._progress()
-        self._theme_switch()
         self._option_controls()
         self._page_tabs()
         self.style.layout("Apple.Vertical.TScrollbar", [
@@ -376,54 +374,6 @@ class AppleAppearance:
                 ("Apple.Progress.pbar", {"side": "left", "sticky": "ns"}),
             ]}),
         ])
-
-    def _theme_switch(self) -> None:
-        c, p = self.colors, self.px
-
-        def switch_image(selected: bool, *, focus: bool = False, pressed: bool = False) -> ImageTk.PhotoImage:
-            factor, width, height = 3, p(44), p(26)
-            image = Image.new("RGB", (width * factor, height * factor), c.background)
-            draw = ImageDraw.Draw(image)
-            box = lambda inset: (inset * factor, inset * factor, (width - inset) * factor - 1, (height - inset) * factor - 1)
-            if focus:
-                draw.rounded_rectangle(box(p(1)), radius=p(12) * factor, fill=c.accent)
-            inset = p(3)
-            if selected:
-                track = c.primary_pressed if pressed else c.primary
-            else:
-                track = (c.scrollbar_hover if self.mode == "light" else c.button_pressed) if pressed else c.switch_off
-            draw.rounded_rectangle(box(inset), radius=p(10) * factor, fill=track)
-            diameter = height - 2 * p(5)
-            left = width - p(5) - diameter if selected else p(5)
-            draw.ellipse(
-                (left * factor, p(5) * factor, (left + diameter) * factor - 1, (p(5) + diameter) * factor - 1),
-                fill="#ffffff",
-            )
-            photo = ImageTk.PhotoImage(image.resize((width, height), Image.Resampling.LANCZOS), master=self.root)
-            self.images.append(photo)
-            return photo
-
-        off, on = switch_image(False), switch_image(True)
-        off_focus, on_focus = switch_image(False, focus=True), switch_image(True, focus=True)
-        off_pressed, on_pressed = switch_image(False, pressed=True), switch_image(True, pressed=True)
-        self.style.element_create(
-            "Apple.ThemeSwitch.indicator", "image", off,
-            ("selected", "pressed", on_pressed), ("pressed", off_pressed),
-            ("selected", "focus", on_focus), ("focus", off_focus), ("selected", on),
-            sticky="nswe",
-        )
-        self.style.layout("Theme.TCheckbutton", [
-            ("Checkbutton.padding", {"sticky": "nswe", "children": [
-                ("Apple.ThemeSwitch.indicator", {"side": "right", "sticky": "e"}),
-                ("Checkbutton.label", {"side": "left", "sticky": "w"}),
-            ]}),
-        ])
-        self.style.configure(
-            "Theme.TCheckbutton", background=c.background, foreground=c.secondary,
-            padding=(p(8), p(4)), width=5,
-        )
-        self.style.map("Theme.TCheckbutton", foreground=[("active", c.text), ("focus", c.text)])
-
 
 class SegmentedPages(tk.Canvas):
     """One shared navigation track around native, keyboard-accessible radio buttons."""
