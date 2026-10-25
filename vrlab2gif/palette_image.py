@@ -10,11 +10,32 @@ import struct
 import tkinter as tk
 import zlib
 
-from PIL import Image
+from PIL import Image, ImageTk
 
 
 def _chunk(kind: bytes, data: bytes) -> bytes:
     return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind+data) & 0xffffffff)
+
+
+class SurfaceImage:
+    """Large card rasters: avoid Python per-pixel indexing on first layout.
+
+    Real theme motion is composited by DWM. These images only need endpoint
+    paints; intermediate rendering remains available for static previews.
+    """
+    def __init__(self, master, dark, light):
+        self.dark, self.light = dark, light
+        self.photo = ImageTk.PhotoImage(dark, master=master)
+        self.amount = 0.0
+
+    def __str__(self):
+        return str(self.photo)
+
+    def render(self, amount):
+        if amount != self.amount:
+            image = self.dark if amount == 0 else self.light if amount == 1 else Image.blend(self.dark, self.light, amount)
+            self.photo.paste(image)
+            self.amount = amount
 
 
 class PaletteImage:

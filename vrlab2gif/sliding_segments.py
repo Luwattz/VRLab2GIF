@@ -8,6 +8,7 @@ import tkinter as tk
 from PIL import Image, ImageDraw
 
 from .palette_image import PaletteImage
+from .motion_timing import MotionTiming
 
 
 def _rounded(width, height, radius, fill, border, background=None):
@@ -92,6 +93,7 @@ class SlidingSegments(tk.Canvas):
         self.position = self.target = float(self.keys.index(variable.get()))
         self.velocity, self.last_time = 0.0, time.perf_counter()
         self.timer_id = None
+        self.timing = MotionTiming()
         self.pressed_key = self.focused_key = None
         self._animate = True
         self._size = None
@@ -187,13 +189,15 @@ class SlidingSegments(tk.Canvas):
     def _retarget(self, target, *, animate=True):
         self.target, self.last_time = float(target), time.perf_counter()
         if not animate or not self.motion_enabled:
+            self.timing.stop()
             if self.timer_id is not None:
                 self.after_cancel(self.timer_id)
                 self.timer_id = None
             self.position, self.velocity = self.target, 0.0
             self._draw_position()
         elif self.timer_id is None and (abs(self.position-self.target) > .001 or abs(self.velocity) > .01):
-            self.timer_id = self.after(16, self._tick)
+            self.timing.start()
+            self.timer_id = self.after(1, self._tick)
 
     def _tick(self):
         self.timer_id = None
@@ -207,12 +211,14 @@ class SlidingSegments(tk.Canvas):
         self.velocity = (self.velocity-omega*coefficient*seconds)*decay
         if abs(self.position-self.target) < .003 and abs(self.velocity) < .06:
             self.position, self.velocity = self.target, 0.0
+            self.timing.stop()
         else:
-            self.timer_id = self.after(16, self._tick)
+            self.timer_id = self.after(self.timing.delay(now), self._tick)
         self._draw_position()
 
     def _destroy(self, event):
         if event.widget is self:
+            self.timing.stop()
             if self.timer_id is not None:
                 self.after_cancel(self.timer_id)
                 self.timer_id = None

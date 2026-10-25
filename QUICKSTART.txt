@@ -1,4 +1,4 @@
-Virtual Reality Lab 视角合成器 1.2.3
+Virtual Reality Lab 视角合成器 1.2.4
 Copyright © Intelligent Efficiency Team
 开发公司：Intelligent Efficiency Team
 

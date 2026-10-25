@@ -1,8 +1,8 @@
 # Virtual Reality Lab 视角合成器
 
-**1.2.3**：修正主题渐变中位图与原生控件混色取整不一致引起的条带色差，并减少整幅位图复制及小块平铺重绘。三个分页改为与 Dark / Light 一致的分段滑块，支持连续反向切换、取消点击和键盘选择。
+**1.2.4**：主题切换改为 Windows 整体画面合成，解决日志标题、按钮栏等控件分批重绘造成的横纹。大卡片使用缓存圆角切片，减少首次切页停顿；两个滑块按 60 Hz 帧预算调度，动画期间临时提高 Windows 定时精度，结束即释放。
 
-Dark / Light 切换时，原生标题栏、主体和控件采用同一份渐变配色。参考 ACT-WBEX-Updater 的可中断过渡方式，本机完整切换实测约 0.6 秒。默认仍为 Dark，详见 [主题过渡说明](docs/theme-transition.md)。
+Dark / Light 切换时，主体作为完整画面统一渐变，标题栏与顶部选择器同步配色。支持途中反向选择，默认仍为 Dark；本机 150% 缩放下动画帧间隔通常约 17 ms，性能及限制详见 [主题过渡说明](docs/theme-transition.md)。
 
 右上角保留 ACT-WBEX-Updater 风格的分段按钮，两个标签固定显示，选中块平滑滑动，支持快速反向切换、按下取消及键盘操作，并遵循 Windows 动画设置。
 
@@ -18,7 +18,7 @@ VRLab 2024 R1 的 COM 导出文件名使用索引，与手动菜单导出的角�
 
 ## 使用
 
-正式版本位于 [GitHub Releases](https://github.com/Luwattz/VRLab2GIF/releases/latest)。下载 `VRLab2GIF.exe`，或下载包含说明文档的 `VRLab2GIF-Windows-x64.zip`。本地构建输出为 `dist/1.2.3/VRLab2GIF.exe`。无需安装 Python；单独复制 EXE 即可运行，Arial 与原生拖放组件均已内嵌。
+正式版本位于 [GitHub Releases](https://github.com/Luwattz/VRLab2GIF/releases/latest)。下载 `VRLab2GIF.exe`，或下载包含说明文档的 `VRLab2GIF-Windows-x64.zip`。本地构建输出为 `dist/1.2.4/VRLab2GIF.exe`。无需安装 Python；单独复制 EXE 即可运行，Arial 与原生拖放组件均已内嵌。
 
 1. 从资源管理器将一个 `.OptisVR` 或 `.speos360` 视角文件拖入程序窗口，也可以点击“选择文件…”或手动填写路径。
 2. 输出默认在源文件旁的 `文件名_GIF` 文件夹，可更改。自定义输出后，换输入文件会保留自定义位置。
@@ -65,7 +65,7 @@ python main.py
 构建：
 
 ```powershell
-.\build.ps1 -OutputDirectory 'dist\1.2.3'
+.\build.ps1 -OutputDirectory 'dist\1.2.4'
 ```
 
 构建自动安装依赖、运行测试、检查字体与拖放桥接，然后生成单文件 EXE 和 ZIP。可用 `-Python 'C:\path\python.exe' -SkipInstall` 复用已配置环境。PyInstaller 包含 tkinterdnd2 的原生 Tk 扩展；字体缺失时构建会报错，详见 [字体资源说明](docs/fonts.md)。

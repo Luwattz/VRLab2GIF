@@ -82,6 +82,10 @@ class GifCreatorApp:
         self.root.minsize(min(p(540), width), min(p(340), height))
         self.create_widgets()
         self.appearance.subscribe(self._refresh_colors)
+        self.appearance.subscribe(self._refresh_header)
+        from .theme_scene import ThemeScene
+        self.appearance.transition.scene = ThemeScene(self.appearance, self.main_frame, self.heading,
+                                                       self.pages_frame, self._refresh_header)
         self.input_file_var.trace_add("write", self._sync_default_output)
         self.output_dir_var.trace_add("write", self._clear_reveal_directory)
         self._configure_drop_targets()
@@ -124,6 +128,19 @@ class GifCreatorApp:
         self.filter_summary_label.configure(foreground=c.error if self._filter_summary_invalid else c.secondary)
         self._paint_drop_area()
 
+    def _refresh_header(self) -> None:
+        c = self.appearance.colors
+        self.root.configure(background=c.background)
+        for frame in (self.main_frame, self.heading, self.title_line):
+            frame.configure(background=c.background)
+        self.title_label.configure(background=c.background, foreground=c.text)
+        self.version_label.configure(background=c.background, foreground=c.secondary)
+        if self.icon_label is not None:
+            self.icon_label.configure(background=c.background)
+        self.theme_switch._refresh()
+        self.navigation._recolor()
+        self.appearance._native_titlebar()
+
     def _configure_icon(self) -> None:
         resource_root = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent))
         icon_path = resource_root / "assets" / "vrlab2gif-logo.png"
@@ -149,18 +166,20 @@ class GifCreatorApp:
     def create_widgets(self) -> None:
         p = self.appearance.px
         c = self.appearance.colors
-        main = ttk.Frame(self.root, style="Window.TFrame", padding=(p(16), p(12), p(16), p(8)))
-        main.pack(fill=tk.BOTH, expand=True)
+        main = self.main_frame = tk.Frame(self.root, background=c.background, borderwidth=0)
+        main.pack(fill=tk.BOTH, expand=True, padx=(p(16), p(16)), pady=(p(12), p(8)))
         main.columnconfigure(0, weight=1)
         main.rowconfigure(1, weight=1)
 
-        heading = ttk.Frame(main, style="Window.TFrame")
+        heading = self.heading = tk.Frame(main, background=c.background, borderwidth=0)
         heading.grid(row=0, column=0, sticky="ew", pady=(0, p(8)))
         text_column = 1 if self.header_icon is not None else 0
         heading.columnconfigure(text_column, weight=1)
+        self.icon_label = None
         if self.header_icon is not None:
-            ttk.Label(heading, image=self.header_icon, style="Window.TLabel").grid(row=0, column=0, rowspan=2, padx=(0, p(10)))
-        title_line = ttk.Frame(heading, style="Window.TFrame")
+            self.icon_label = ttk.Label(heading, image=self.header_icon, style="Window.TLabel")
+            self.icon_label.grid(row=0, column=0, rowspan=2, padx=(0, p(10)))
+        title_line = self.title_line = tk.Frame(heading, background=c.background, borderwidth=0)
         title_line.grid(row=0, column=text_column, sticky="w")
         self.title_label = ttk.Label(title_line, text="视角合成器", style="Title.TLabel")
         self.title_label.grid(row=0, column=0, sticky="w")
@@ -176,7 +195,7 @@ class GifCreatorApp:
         self.theme_switch = ThemeSwitch(heading, self.appearance, self.dark_mode_var, self.toggle_theme)
         self.theme_switch.grid(row=0, column=text_column + 1, sticky="e", padx=(p(8), 0))
 
-        pages = ttk.Frame(main, style="Window.TFrame")
+        pages = self.pages_frame = ttk.Frame(main, style="Window.TFrame")
         pages.grid(row=1, column=0, sticky="nsew")
         pages.rowconfigure(0, weight=1)
         pages.columnconfigure(0, weight=1)
@@ -327,6 +346,7 @@ class GifCreatorApp:
     def select_page(self, name: str) -> None:
         if name not in self.page_areas:
             raise ValueError(f"Unknown page: {name}")
+        self.appearance.transition.finish()
         focused = self.root.focus_get()
         hidden_focus = focused is not None and any(
             key != name and (str(focused) == str(area) or str(focused).startswith(str(area) + "."))

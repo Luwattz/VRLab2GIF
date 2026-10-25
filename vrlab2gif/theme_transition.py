@@ -7,6 +7,7 @@ import time
 
 from .appearance import PALETTES, Palette
 from .theme_switch import system_motion_enabled
+from .motion_timing import MotionTiming
 
 
 def blend_color(dark: str, light: str, amount: float) -> str:
@@ -21,6 +22,8 @@ class ThemeTransition:
         self.timer_id = None
         self.last_time = time.perf_counter()
         self.motion_enabled = system_motion_enabled()
+        self.scene = None
+        self.timing = MotionTiming()
         self.root.bind("<Destroy>", self._destroy, add="+")
 
     def to(self, mode: str, animate=True):
@@ -32,17 +35,41 @@ class ThemeTransition:
             self.alpha, self.velocity = self.target, 0.0
             self.render(self.alpha, endpoint=True)
         else:
+            if self.scene is not None and not self.scene.prepare(mode):
+                self.cancel()
+                self.alpha, self.velocity = self.target, 0.0
+                self.render(self.alpha, endpoint=True)
+                return
             # Reuse the current displayed brightness and velocity on reversal.
             self.render(self.alpha)
+            # Preparation is outside animation time: the first visible frame
+            # must not jump ahead by the time spent capturing the two themes.
+            self.last_time = time.perf_counter()
             if self.timer_id is None and (abs(self.alpha-self.target) > .001 or abs(self.velocity) > .01):
-                self.timer_id = self.root.after(16, self._tick)
+                self.timing.start()
+                self.timer_id = self.root.after(1, self._tick)
 
     def render(self, amount: float, *, endpoint=False):
         self.alpha = max(0.0, min(1.0, amount))
         colors = Palette(**{field.name: blend_color(getattr(PALETTES["dark"], field.name),
                                                     getattr(PALETTES["light"], field.name), self.alpha)
                             for field in fields(Palette)})
-        self.appearance._present(colors, self.alpha, endpoint=endpoint)
+        if self.scene is not None and self.scene.active:
+            if endpoint:
+                self.appearance._present(colors, self.alpha, endpoint=True)
+                self.root.update_idletasks()
+                self.scene.stop()
+            else:
+                self.appearance.colors, self.appearance.blend = colors, self.alpha
+                try:
+                    self.scene.render(self.alpha)
+                except OSError as exc:
+                    self.scene.last_error = str(exc)
+                    self.cancel()
+                    self.alpha, self.velocity = self.target, 0.0
+                    self.render(self.alpha, endpoint=True)
+        else:
+            self.appearance._present(colors, self.alpha, endpoint=endpoint)
 
     def _tick(self):
         self.timer_id = None
@@ -56,12 +83,24 @@ class ThemeTransition:
         self.velocity = (self.velocity-omega*coefficient*seconds)*decay
         if abs(amount-self.target) < .003 and abs(self.velocity) < .06:
             self.alpha, self.velocity = self.target, 0.0
+            self.timing.stop()
             self.render(self.alpha, endpoint=True)
         else:
             self.render(amount)
-            self.timer_id = self.root.after(16, self._tick)
+            if self.alpha == self.target and self.velocity == 0:
+                return  # A compositor failure already completed the theme.
+            # Include paint cost in the frame budget rather than adding it to
+            # a fixed delay (which halves frame rate on high-DPI displays).
+            self.timer_id = self.root.after(self.timing.delay(now), self._tick)
+
+    def finish(self):
+        if self.scene is not None and self.scene.active:
+            self.cancel()
+            self.alpha, self.velocity = self.target, 0.0
+            self.render(self.alpha, endpoint=True)
 
     def cancel(self):
+        self.timing.stop()
         if self.timer_id is not None:
             self.root.after_cancel(self.timer_id)
             self.timer_id = None
@@ -69,3 +108,5 @@ class ThemeTransition:
     def _destroy(self, event):
         if event.widget is self.root:
             self.cancel()
+            if self.scene is not None:
+                self.scene.close()

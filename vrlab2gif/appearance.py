@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from tkinter import font as tkfont, ttk
 
 from PIL import Image, ImageDraw, ImageTk
-from .palette_image import PaletteImage
+from .palette_image import PaletteImage, SurfaceImage
 
 
 @dataclass(frozen=True)
@@ -125,8 +125,8 @@ class AppleAppearance:
         self.section_font = self.font(family, 11, "bold")
         self.hint_font = self.font(family, 9)
         self.footer_font = self.font(family, 8)
-        # Build skins once before showing the window. Animated frames only
-        # recolor existing images/styles, never recreate controls or themes.
+        # Build endpoint skins before showing the window. The Windows scene
+        # composites the body; only the small header skins recolor per frame.
         for mode in ("dark", "light", "_fade"):
             self.mode = "dark" if mode == "_fade" else mode
             self.colors = PALETTES[self.mode]
@@ -150,7 +150,8 @@ class AppleAppearance:
     def set_mode(self, mode: str, *, animate=False) -> None:
         if mode not in PALETTES:
             raise ValueError(f"Unknown appearance: {mode}")
-        if mode == self.mode and self.blend == float(mode == "light") and self.transition.timer_id is None:
+        if (mode == self.mode and self.blend == float(mode == "light") and self.transition.timer_id is None
+                and not (self.transition.scene is not None and self.transition.scene.active)):
             return
         self.mode = mode
         self.transition.to(mode, animate=animate)
@@ -277,7 +278,7 @@ class AppleAppearance:
             self.style.map(style, background=[("active", c.surface)], foreground=[("disabled", c.disabled_text)])
 
     def _native_titlebar(self, window: tk.Misc | None = None) -> None:
-        if sys.platform != "win32":
+        if sys.platform != "win32" or getattr(self, "_freeze_caption", False):
             return
         import ctypes
         from ctypes import wintypes
@@ -451,18 +452,36 @@ class RoundedCard(tk.Frame):
             return
         if self._size != (width, height):
             self._size = (width, height)
-            factor = 2
+            # Antialias a small shared tile once. Stretch only its flat strips;
+            # resizing an entire high-DPI card during a page click blocks Tk.
+            edge = self.appearance.px(16)+4
+            tile_size = 2*edge+8
+            if not hasattr(self.appearance, "_card_tiles"):
+                tiles = []
+                for mode, c in PALETTES.items():
+                    image = Image.new("RGB", (tile_size*2, tile_size*2), c.background)
+                    draw = ImageDraw.Draw(image)
+                    radius = self.appearance.px(16)*2
+                    draw.rounded_rectangle((2, 4, (tile_size-1)*2, tile_size*2-1), radius=radius, fill=c.shadow)
+                    draw.rounded_rectangle((2, 0, (tile_size-1)*2, (tile_size-2)*2), radius=radius,
+                                          fill=c.surface, outline=c.border, width=2 if mode == "light" else 1)
+                    tiles.append(image.resize((tile_size, tile_size), Image.Resampling.LANCZOS))
+                self.appearance._card_tiles = tiles
             self._rasters = []
-            for mode, c in PALETTES.items():
-                image = Image.new("RGB", (width * factor, height * factor), c.background)
-                draw = ImageDraw.Draw(image)
-                radius = self.appearance.px(16) * factor
-                draw.rounded_rectangle((factor, factor * 2, (width - 1) * factor, height * factor - 1), radius=radius, fill=c.shadow)
-                draw.rounded_rectangle((factor, 0, (width - 1) * factor, (height - 2) * factor),
-                                      radius=radius, fill=c.surface, outline=c.border,
-                                      width=factor if mode == "light" else 1)
-                self._rasters.append(image.resize((width, height), Image.Resampling.LANCZOS))
-            self._photo = PaletteImage(self, *self._rasters)
+            for tile in self.appearance._card_tiles:
+                # For unusually small layouts, reduce the corner inset to fit.
+                inset = min(edge, width//2, height//2)
+                image = Image.new("RGB", (width, height))
+                xs, ys = (0, inset, width-inset, width), (0, inset, height-inset, height)
+                cuts = (0, inset, tile_size-inset, tile_size)
+                for row in range(3):
+                    for col in range(3):
+                        size = xs[col+1]-xs[col], ys[row+1]-ys[row]
+                        if min(size) > 0:
+                            patch = tile.crop((cuts[col], cuts[row], cuts[col+1], cuts[row+1]))
+                            image.paste(patch.resize(size, Image.Resampling.NEAREST), (xs[col], ys[row]))
+                self._rasters.append(image)
+            self._photo = SurfaceImage(self, *self._rasters)
             self.canvas.itemconfigure(self._image_id, image=self._photo)
             repaint = True
         if repaint:

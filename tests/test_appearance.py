@@ -213,6 +213,7 @@ class AppearanceUsabilityTests(unittest.TestCase):
 
         for expected in ("light", "dark"):
             app.theme_switch.invoke()
+            app.appearance.transition.finish()
             self.root.update()
             palette = app.appearance.colors
             self.assertEqual(app.appearance.mode, expected)
@@ -318,7 +319,7 @@ class AppearanceUsabilityTests(unittest.TestCase):
         self.assertIsNone(switch.timer_id)
         self.assertNotIn(timer_id, self.root.tk.call("after", "info"))
 
-    def test_theme_fade_uses_one_current_palette_without_new_images_or_widgets(self):
+    def test_theme_fade_composites_one_body_without_per_frame_widget_repaint(self):
         app = self._show()
         fade = app.appearance.transition
         fade.motion_enabled = app.theme_switch.motion_enabled = True
@@ -332,10 +333,12 @@ class AppearanceUsabilityTests(unittest.TestCase):
         self.assertEqual(self.root.cget("background"), PALETTES["dark"].background)
         fade.cancel()
         images = set(self.root.tk.call("image", "names"))
+        self.assertTrue(fade.scene.active, fade.scene.last_error)
         with patch("PIL.ImageTk.PhotoImage.paste", side_effect=AssertionError("displayed-image copy")), \
-                patch("PIL.Image.blend", side_effect=AssertionError("full-bitmap blend")), \
+                patch("PIL.Image.blend", side_effect=AssertionError("CPU bitmap blend")), \
                 patch("vrlab2gif.appearance.ImageTk.PhotoImage", side_effect=AssertionError("new frame image")), \
                 patch.object(app.appearance.style, "theme_create", side_effect=AssertionError("new frame theme")), \
+                patch.object(app.appearance, "_present", side_effect=AssertionError("body repaint")), \
                 patch.object(app.appearance, "_native_titlebar") as caption:
             for amount in (.15, .35, .55, .75):
                 fade.render(amount)
@@ -343,10 +346,11 @@ class AppearanceUsabilityTests(unittest.TestCase):
                 colors = app.appearance.colors
                 self.assertNotIn(colors.background, (PALETTES["dark"].background, PALETTES["light"].background))
                 self.assertEqual(self.root.cget("background"), colors.background)
-                self.assertEqual(app.settings_card.canvas.cget("background"), colors.background)
-                self.assertEqual(app.log_text.cget("background"), colors.surface)
+                # Native body widgets stay at the destination under one DWM
+                # layer. Only the live header and the layer opacity animate.
+                self.assertEqual(app.log_text.cget("background"), PALETTES["light"].surface)
                 self.assertEqual(app.theme_switch.cget("background"), colors.background)
-                caption.assert_called_with(self.root)
+                caption.assert_called_with()
         self.assertEqual(set(self.root.tk.call("image", "names")), images)
         self.assertEqual((app.input_entry, app.start_button, app.delay_var.get(),
                           app.log_text.get("1.0", "end"), self.root.winfo_width(), self.root.winfo_height()), before)
@@ -410,23 +414,17 @@ class AppearanceUsabilityTests(unittest.TestCase):
             self.assertEqual(sum(call.args[1] == 35 for call in api.call_args_list), 1)
             self.assertEqual(sum(call.args[1] == 36 for call in api.call_args_list), 1)
 
-    def test_fade_bitmap_flat_fills_match_native_colors_without_horizontal_bands(self):
+    def test_endpoint_card_fills_match_native_colors(self):
         app = self._show()
         appearance = app.appearance
-        for amount in (.03, .15, .35, .55, .75, .97):
-            appearance.transition.render(amount)
+        for mode in ("dark", "light"):
+            app.set_theme(mode)
+            amount = appearance.blend
             color = tuple(int(appearance.colors.surface[i:i+2], 16) for i in (1, 3, 5))
-            photo = app.settings_card._photo.photo
+            photo = app.settings_card._photo.photo._PhotoImage__photo
             middle = app.settings_card.winfo_width()//2
             self.assertEqual({photo.get(middle, y) for y in range(4, app.settings_card.winfo_height()-6)}, {color})
             self.assertEqual(appearance.style.lookup("TFrame", "background"), appearance.colors.surface)
-            for (photo, _), (_, dark), (_, light) in zip(appearance._skin_sources["_fade"],
-                                                        appearance._skin_sources["dark"], appearance._skin_sources["light"]):
-                if dark.width <= 100 or dark.height <= 20:
-                    continue
-                xy = dark.width//2, dark.height//2
-                expected = tuple(round(a*(1-amount)+b*amount) for a, b in zip(dark.getpixel(xy), light.getpixel(xy)))
-                self.assertEqual(photo.photo.get(*xy), expected)
 
     def test_page_selection_uses_one_reversible_thumb_and_preserves_page_data(self):
         app = self._show()
