@@ -1,0 +1,10 @@
+{
+  "source_repository": "https://github.com/ansys/optical-automation",
+  "source_file": "https://github.com/ansys/optical-automation/blob/main/tests/workflows/example_models/test_07_VRLab_export.OptisVR",
+  "download_url": "https://raw.githubusercontent.com/ansys/optical-automation/main/tests/workflows/example_models/test_07_VRLab_export.OptisVR",
+  "size_bytes": 15793012,
+  "git_blob_sha1": "a0165325c731235ecfce66d89c4203ec28e9827e",
+  "sha256": "30daf18b8d7a78d02e2f18c64325e0aac3a1e31bac28fce900ded60b08365272",
+  "retrieved_date": "2026-10-24",
+  "integrity_verified": true
+}

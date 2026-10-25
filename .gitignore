@@ -1,0 +1,31 @@
+.venv/
+__pycache__/
+*.py[cod]
+build/
+dist/
+.pytest_cache/
+.vrlab2gif-*.tmp
+.vrlab2gif-ppt-*.tmp
+.test-*/
+
+# Keep sample documentation and provenance; large downloaded/generated inputs
+# and results remain local. Application binaries are published as Release assets.
+/samples/*
+!/samples/ansys-vrlab/
+/samples/ansys-vrlab/*
+!/samples/ansys-vrlab/README.md
+!/samples/ansys-vrlab/LICENSE-ANSYS.txt
+!/samples/ansys-vrlab/source.json
+!/samples/ansys-vrlab/SHA256SUMS.txt
+!/samples/ansys-vrlab/reference_results.json
+!/samples/ansys-vrlab/additional/
+/samples/ansys-vrlab/additional/*
+!/samples/ansys-vrlab/additional/README.md
+!/samples/ansys-vrlab/additional/*-source.json
+!/samples/ansys-vrlab/additional/*-contents.json
+!/samples/ansys-vrlab/additional/AR-license.txt
+!/samples/ansys-vrlab/additional/HUD-license.txt
+!/samples/ansys-vrlab/additional/AR-metadata.json
+!/samples/ansys-vrlab/additional/angle-investigation/
+/samples/ansys-vrlab/additional/angle-investigation/*
+!/samples/ansys-vrlab/additional/angle-investigation/visual-matches.json

@@ -1,0 +1,80 @@
+[
+  {
+    "name": "license.txt",
+    "size": 143,
+    "compressed": 118,
+    "offset": 0
+  },
+  {
+    "name": "metadata.json",
+    "size": 113,
+    "compressed": 108,
+    "offset": 159
+  },
+  {
+    "name": "Step1_OpticStudioDesign/HUD_Step1_MF_before_optim.zar",
+    "size": 140193,
+    "compressed": 137039,
+    "offset": 310
+  },
+  {
+    "name": "Step2_OpticStudioExport/HUD_Step1_MF_after_optim_apertures.zar",
+    "size": 139625,
+    "compressed": 136546,
+    "offset": 137432
+  },
+  {
+    "name": "Step2_OpticStudioExport/HUD_Step1_start.stp",
+    "size": 13098242,
+    "compressed": 2623747,
+    "offset": 274070
+  },
+  {
+    "name": "Step3_4_Speos_HOA_Visu/HUD_Step1_start.scdoc",
+    "size": 7007433,
+    "compressed": 3755707,
+    "offset": 2897890
+  },
+  {
+    "name": "Step3_4_Speos_HOA_Visu/SPEOS input files/Display_HUD.preset",
+    "size": 3618,
+    "compressed": 735,
+    "offset": 6653671
+  },
+  {
+    "name": "Step3_4_Speos_HOA_Visu/SPEOS input files/Observer_HUD_stereo.preset",
+    "size": 6556,
+    "compressed": 867,
+    "offset": 6654495
+  },
+  {
+    "name": "Step3_4_Speos_HOA_Visu/SPEOS input files/Radiance_HUD.preset",
+    "size": 4653,
+    "compressed": 780,
+    "offset": 6655459
+  },
+  {
+    "name": "Step3_4_Speos_HOA_Visu/SPEOS input files/START.preset",
+    "size": 12636,
+    "compressed": 1588,
+    "offset": 6656329
+  },
+  {
+    "name": "Step3_4_Speos_HOA_Visu/SPEOS input files/START.Warping.png",
+    "size": 94608,
+    "compressed": 78497,
+    "offset": 6658000
+  },
+  {
+    "name": "Step3_4_Speos_HOA_Visu/SPEOS input files/Visualization HUD.preset",
+    "size": 6390,
+    "compressed": 1062,
+    "offset": 6736585
+  },
+  {
+    "name": "Step3_4_Speos_HOA_Visu/SPEOS input files/Zemax OpticStudio PGU.png",
+    "size": 74936,
+    "compressed": 42683,
+    "offset": 6737742
+  }
+]

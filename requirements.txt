@@ -1,0 +1,4 @@
+Pillow>=10.4,<14
+tkinterdnd2>=0.4.4.1,<0.5
+pywin32>=308; sys_platform == "win32"
+psutil>=5.9,<8; sys_platform == "win32"

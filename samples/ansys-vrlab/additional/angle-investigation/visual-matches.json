@@ -1,0 +1,212 @@
+[
+  {
+    "manual": "AR_Observer_520nm_Image_-0.10°_-0.10°.png",
+    "api": "AR_Observer_520nm_Image_2_1.png",
+    "correlation": 0.99666,
+    "runner_up": 0.96208
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_-0.10°_-0.20°.png",
+    "api": "AR_Observer_520nm_Image_2_0.png",
+    "correlation": 0.99641,
+    "runner_up": 0.95971
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_-0.10°_0.00°.png",
+    "api": "AR_Observer_520nm_Image_2_2.png",
+    "correlation": 0.99718,
+    "runner_up": 0.96432
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_-0.10°_0.10°.png",
+    "api": "AR_Observer_520nm_Image_2_3.png",
+    "correlation": 0.99723,
+    "runner_up": 0.9633
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_-0.10°_0.20°.png",
+    "api": "AR_Observer_520nm_Image_2_4.png",
+    "correlation": 0.99758,
+    "runner_up": 0.96594
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_-0.20°_-0.10°.png",
+    "api": "AR_Observer_520nm_Image_1_1.png",
+    "correlation": 0.99671,
+    "runner_up": 0.96143
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_-0.20°_-0.20°.png",
+    "api": "AR_Observer_520nm_Image_1_0.png",
+    "correlation": 0.99611,
+    "runner_up": 0.96192
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_-0.20°_0.00°.png",
+    "api": "AR_Observer_520nm_Image_1_2.png",
+    "correlation": 0.99694,
+    "runner_up": 0.9652
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_-0.20°_0.10°.png",
+    "api": "AR_Observer_520nm_Image_1_3.png",
+    "correlation": 0.9972,
+    "runner_up": 0.96583
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_-0.20°_0.20°.png",
+    "api": "AR_Observer_520nm_Image_1_4.png",
+    "correlation": 0.99758,
+    "runner_up": 0.96773
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_-0.30°_-0.10°.png",
+    "api": "AR_Observer_520nm_Image_0_1.png",
+    "correlation": 0.99655,
+    "runner_up": 0.95712
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_-0.30°_-0.20°.png",
+    "api": "AR_Observer_520nm_Image_0_0.png",
+    "correlation": 0.99612,
+    "runner_up": 0.95631
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_-0.30°_0.00°.png",
+    "api": "AR_Observer_520nm_Image_0_2.png",
+    "correlation": 0.99697,
+    "runner_up": 0.96065
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_-0.30°_0.10°.png",
+    "api": "AR_Observer_520nm_Image_0_3.png",
+    "correlation": 0.99728,
+    "runner_up": 0.96101
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_-0.30°_0.20°.png",
+    "api": "AR_Observer_520nm_Image_0_4.png",
+    "correlation": 0.99744,
+    "runner_up": 0.96277
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_0.00°_-0.10°.png",
+    "api": "AR_Observer_520nm_Image_3_1.png",
+    "correlation": 0.99677,
+    "runner_up": 0.96039
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_0.00°_-0.20°.png",
+    "api": "AR_Observer_520nm_Image_3_0.png",
+    "correlation": 0.99641,
+    "runner_up": 0.95871
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_0.00°_0.00°.png",
+    "api": "AR_Observer_520nm_Image_3_2.png",
+    "correlation": 0.99699,
+    "runner_up": 0.96043
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_0.00°_0.10°.png",
+    "api": "AR_Observer_520nm_Image_3_3.png",
+    "correlation": 0.99739,
+    "runner_up": 0.96324
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_0.00°_0.20°.png",
+    "api": "AR_Observer_520nm_Image_3_4.png",
+    "correlation": 0.99749,
+    "runner_up": 0.96749
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_0.10°_-0.10°.png",
+    "api": "AR_Observer_520nm_Image_4_1.png",
+    "correlation": 0.9966,
+    "runner_up": 0.96158
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_0.10°_-0.20°.png",
+    "api": "AR_Observer_520nm_Image_4_0.png",
+    "correlation": 0.99652,
+    "runner_up": 0.96161
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_0.10°_0.00°.png",
+    "api": "AR_Observer_520nm_Image_4_2.png",
+    "correlation": 0.99711,
+    "runner_up": 0.96143
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_0.10°_0.10°.png",
+    "api": "AR_Observer_520nm_Image_4_3.png",
+    "correlation": 0.99739,
+    "runner_up": 0.96349
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_0.10°_0.20°.png",
+    "api": "AR_Observer_520nm_Image_4_4.png",
+    "correlation": 0.99744,
+    "runner_up": 0.96462
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_0.20°_-0.10°.png",
+    "api": "AR_Observer_520nm_Image_5_1.png",
+    "correlation": 0.99669,
+    "runner_up": 0.96199
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_0.20°_-0.20°.png",
+    "api": "AR_Observer_520nm_Image_5_0.png",
+    "correlation": 0.99634,
+    "runner_up": 0.95792
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_0.20°_0.00°.png",
+    "api": "AR_Observer_520nm_Image_5_2.png",
+    "correlation": 0.99698,
+    "runner_up": 0.95797
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_0.20°_0.10°.png",
+    "api": "AR_Observer_520nm_Image_5_3.png",
+    "correlation": 0.99726,
+    "runner_up": 0.9592
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_0.20°_0.20°.png",
+    "api": "AR_Observer_520nm_Image_5_4.png",
+    "correlation": 0.99738,
+    "runner_up": 0.96057
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_0.30°_-0.10°.png",
+    "api": "AR_Observer_520nm_Image_6_1.png",
+    "correlation": 0.99625,
+    "runner_up": 0.94812
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_0.30°_-0.20°.png",
+    "api": "AR_Observer_520nm_Image_6_0.png",
+    "correlation": 0.99616,
+    "runner_up": 0.94493
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_0.30°_0.00°.png",
+    "api": "AR_Observer_520nm_Image_6_2.png",
+    "correlation": 0.99661,
+    "runner_up": 0.9512
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_0.30°_0.10°.png",
+    "api": "AR_Observer_520nm_Image_6_3.png",
+    "correlation": 0.99711,
+    "runner_up": 0.95808
+  },
+  {
+    "manual": "AR_Observer_520nm_Image_0.30°_0.20°.png",
+    "api": "AR_Observer_520nm_Image_6_4.png",
+    "correlation": 0.99706,
+    "runner_up": 0.9617
+  }
+]

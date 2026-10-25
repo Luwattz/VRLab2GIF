@@ -1,0 +1,308 @@
+[
+  {
+    "name": "AR Stereo system 520nm.scdocx",
+    "size": 19117733,
+    "compressed": 11312762,
+    "offset": 0
+  },
+  {
+    "name": "Input from Lumerical-DOE/RCWA_green_expander_export.json",
+    "size": 37518995,
+    "compressed": 5612851,
+    "offset": 11312821
+  },
+  {
+    "name": "Input from Lumerical-DOE/RCWA_green_in_out_export.json",
+    "size": 53415106,
+    "compressed": 7969371,
+    "offset": 16925758
+  },
+  {
+    "name": "Input from ZOS_Projector Lens/AR_Projector_end.odx",
+    "size": 5183,
+    "compressed": 2061,
+    "offset": 24895213
+  },
+  {
+    "name": "Input from ZOS_Projector Lens/AR_Projector_end.zar",
+    "size": 140126,
+    "compressed": 135872,
+    "offset": 24897354
+  },
+  {
+    "name": "license.txt",
+    "size": 143,
+    "compressed": 118,
+    "offset": 25033306
+  },
+  {
+    "name": "metadata.json",
+    "size": 124,
+    "compressed": 113,
+    "offset": 25033465
+  },
+  {
+    "name": "SPEOS input files/520.spectrum",
+    "size": 1039,
+    "compressed": 431,
+    "offset": 25033621
+  },
+  {
+    "name": "SPEOS input files/Alpha_2.png",
+    "size": 6400,
+    "compressed": 2257,
+    "offset": 25034112
+  },
+  {
+    "name": "SPEOS input files/AnsysGrid.png",
+    "size": 100065,
+    "compressed": 80752,
+    "offset": 25036428
+  },
+  {
+    "name": "SPEOS input files/AR_Projector_end.odx",
+    "size": 5183,
+    "compressed": 2061,
+    "offset": 25117241
+  },
+  {
+    "name": "SPEOS input files/blanc brillant.brdf",
+    "size": 2602122,
+    "compressed": 2563681,
+    "offset": 25119370
+  },
+  {
+    "name": "SPEOS input files/gamma mask.png",
+    "size": 15221,
+    "compressed": 2762,
+    "offset": 27683118
+  },
+  {
+    "name": "SPEOS input files/lumerical-sub-wavelength.sop",
+    "size": 422346,
+    "compressed": 421611,
+    "offset": 27685942
+  },
+  {
+    "name": "SPEOS input files/lumerical-sub-wavelength-2024R1-GPU.sop",
+    "size": 530654,
+    "compressed": 529155,
+    "offset": 28107629
+  },
+  {
+    "name": "SPEOS input files/N-LAK34.material",
+    "size": 818,
+    "compressed": 420,
+    "offset": 28636871
+  },
+  {
+    "name": "SPEOS input files/N-PSK53A.material",
+    "size": 748,
+    "compressed": 385,
+    "offset": 28637355
+  },
+  {
+    "name": "SPEOS input files/N-SF66.material",
+    "size": 589,
+    "compressed": 338,
+    "offset": 28637805
+  },
+  {
+    "name": "SPEOS input files/Peau.anisotropicbsdf",
+    "size": 3542083,
+    "compressed": 1125187,
+    "offset": 28638206
+  },
+  {
+    "name": "SPEOS input files/PerfectAR.simplescattering",
+    "size": 89,
+    "compressed": 72,
+    "offset": 29763461
+  },
+  {
+    "name": "SPEOS input files/PlainWhite.png",
+    "size": 58844,
+    "compressed": 966,
+    "offset": 29763607
+  },
+  {
+    "name": "SPEOS input files/PlainWhite_NM.png",
+    "size": 58844,
+    "compressed": 957,
+    "offset": 29764635
+  },
+  {
+    "name": "SPEOS input files/RCWA_green_expander_export.json",
+    "size": 37518995,
+    "compressed": 5612851,
+    "offset": 29765657
+  },
+  {
+    "name": "SPEOS input files/RCWA_green_in_out_export.json",
+    "size": 53415106,
+    "compressed": 7969371,
+    "offset": 35378587
+  },
+  {
+    "name": "SPEOS input files/Skin_D\u00e9sir\u00e9.brdf",
+    "size": 2550787,
+    "compressed": 2511993,
+    "offset": 43348035
+  },
+  {
+    "name": "SPEOS input files/Skin_Eug\u00e8ne.brdf",
+    "size": 3513809,
+    "compressed": 1202082,
+    "offset": 45860092
+  },
+  {
+    "name": "SPEOS input files/Skin_multi_scan.brdf",
+    "size": 2623848,
+    "compressed": 2585257,
+    "offset": 47062238
+  },
+  {
+    "name": "SPEOS input files/Skin_Sierra.brdf",
+    "size": 2541211,
+    "compressed": 2502482,
+    "offset": 49647563
+  },
+  {
+    "name": "SPEOS input files/SkinNM.jpg",
+    "size": 1084122,
+    "compressed": 1079433,
+    "offset": 52150109
+  },
+  {
+    "name": "SPEOS input files/studio001 v2 square mri.hdr",
+    "size": 1288981,
+    "compressed": 244727,
+    "offset": 53229600
+  },
+  {
+    "name": "SPEOS input files/StudioAtm_14_xxl.hdr",
+    "size": 144905583,
+    "compressed": 101884521,
+    "offset": 53474402
+  },
+  {
+    "name": "SPEOS input files/Texture n\u00b04 - 20x200mm\u00b2 - 200ppm.png",
+    "size": 1709690,
+    "compressed": 1704864,
+    "offset": 155358991
+  },
+  {
+    "name": "SPEOS input files/TexturesCom_Eyeball_512_albedo.tiff",
+    "size": 437423,
+    "compressed": 421575,
+    "offset": 157063939
+  },
+  {
+    "name": "SPEOS input files/TexturesCom_Eyeball_512_normal.tiff",
+    "size": 1590559,
+    "compressed": 942327,
+    "offset": 157485597
+  },
+  {
+    "name": "SPEOS input files/TexturesCom_Eyeball_Blue_1K_albedo.png",
+    "size": 5359473,
+    "compressed": 5339490,
+    "offset": 158428007
+  },
+  {
+    "name": "SPEOS input files/TexturesCom_Eyeball_Blue_1K_albedo.tiff",
+    "size": 7418919,
+    "compressed": 7045896,
+    "offset": 163767583
+  },
+  {
+    "name": "SPEOS input files/transparency2.png",
+    "size": 652,
+    "compressed": 600,
+    "offset": 170813566
+  },
+  {
+    "name": "Speos Results files/Combined Observer/Union_Observer_Results_.speos360",
+    "size": 825090012,
+    "compressed": 820841620,
+    "offset": 170814231
+  },
+  {
+    "name": "Speos Results files/Combined Radiance/Inverse.Radiance FHD_Combine.xmp",
+    "size": 31610125,
+    "compressed": 31535953,
+    "offset": 991655951
+  },
+  {
+    "name": "Speos Results files/SPEOS output files/Direct.Uniform_Display_Source_520nm.Irradiance_520nm.xmp",
+    "size": 15704113,
+    "compressed": 15658802,
+    "offset": 1023192004
+  },
+  {
+    "name": "Speos Results files/SPEOS output files/Direct.Uniform_Display_Source_520nm.Report.html",
+    "size": 1959574,
+    "compressed": 1469046,
+    "offset": 1038850931
+  },
+  {
+    "name": "Speos Results files/SPEOS output files/Interactive.Display_Source_520.Report.html",
+    "size": 27594,
+    "compressed": 6998,
+    "offset": 1040320093
+  },
+  {
+    "name": "Speos Results files/SPEOS output files/Interactive.Parallel_Beam_520.Report.html",
+    "size": 27323,
+    "compressed": 6943,
+    "offset": 1040327202
+  },
+  {
+    "name": "Speos Results files/SPEOS output files/Inverse FDTD 520nm.Radiance FHD 520nm.xmp",
+    "size": 7238882,
+    "compressed": 7166867,
+    "offset": 1040334255
+  },
+  {
+    "name": "Speos Results files/SPEOS output files/Inverse FDTD 520nm.Report.html",
+    "size": 350679,
+    "compressed": 247748,
+    "offset": 1047501232
+  },
+  {
+    "name": "Speos Results files/SPEOS output files/Inverse FDTD Ambient.Radiance FHD FullSpectra.xmp",
+    "size": 179540122,
+    "compressed": 179576502,
+    "offset": 1047749079
+  },
+  {
+    "name": "Speos Results files/SPEOS output files/Inverse FDTD Ambient.Report.html",
+    "size": 3092266,
+    "compressed": 2325415,
+    "offset": 1227325699
+  },
+  {
+    "name": "Speos Results files/SPEOS output files/Inverse FDTD Observer 520nm.Observer FHD 520nm.speos360",
+    "size": 57293320,
+    "compressed": 56464890,
+    "offset": 1229651215
+  },
+  {
+    "name": "Speos Results files/SPEOS output files/Inverse FDTD Observer 520nm.Report.html",
+    "size": 30187,
+    "compressed": 7427,
+    "offset": 1286116229
+  },
+  {
+    "name": "Speos Results files/SPEOS output files/Inverse FDTD Observer Ambient.Observer FHD.speos360",
+    "size": 761287634,
+    "compressed": 760917729,
+    "offset": 1286123764
+  },
+  {
+    "name": "Speos Results files/SPEOS output files/Inverse FDTD Observer Ambient.Report.html",
+    "size": 31731,
+    "compressed": 7632,
+    "offset": 2047041613
+  }
+]
