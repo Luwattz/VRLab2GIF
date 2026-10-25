@@ -85,7 +85,8 @@ class GifCreatorApp:
         self.appearance.subscribe(self._refresh_header)
         from .theme_scene import ThemeScene
         self.appearance.transition.scene = ThemeScene(self.appearance, self.main_frame, self.heading,
-                                                       self.pages_frame, self._refresh_header)
+                                                       self.pages_frame, self._refresh_header,
+                                                       (self.theme_switch, self.navigation))
         self.input_file_var.trace_add("write", self._sync_default_output)
         self.output_dir_var.trace_add("write", self._clear_reveal_directory)
         self._configure_drop_targets()
@@ -178,7 +179,7 @@ class GifCreatorApp:
         self.icon_label = None
         if self.header_icon is not None:
             self.icon_label = ttk.Label(heading, image=self.header_icon, style="Window.TLabel")
-            self.icon_label.grid(row=0, column=0, rowspan=2, padx=(0, p(10)))
+            self.icon_label.grid(row=0, column=0, padx=(0, p(10)))
         title_line = self.title_line = tk.Frame(heading, background=c.background, borderwidth=0)
         title_line.grid(row=0, column=text_column, sticky="w")
         self.title_label = ttk.Label(title_line, text="视角合成器", style="Title.TLabel")
@@ -190,7 +191,8 @@ class GifCreatorApp:
             [("settings", "生成设置"), ("filters", self.filter_tab_var), ("logs", "运行日志")],
             self.select_page,
         )
-        self.navigation.grid(row=1, column=text_column, columnspan=2, sticky="ew", pady=(p(4), 0))
+        self.navigation.grid(row=1, column=0, columnspan=text_column + 2,
+                             sticky="ew", pady=(p(10), 0))
         self.page_buttons = self.navigation.buttons
         self.theme_switch = ThemeSwitch(heading, self.appearance, self.dark_mode_var, self.toggle_theme)
         self.theme_switch.grid(row=0, column=text_column + 1, sticky="e", padx=(p(8), 0))
@@ -292,9 +294,10 @@ class GifCreatorApp:
             padx=0, pady=0, spacing1=p(1), spacing3=p(1),
         )
         self.log_text.grid(row=1, column=0, sticky="nsew")
-        scrollbar = ttk.Scrollbar(logs, orient="vertical", command=self.log_text.yview, style="Apple.Vertical.TScrollbar")
-        scrollbar.grid(row=1, column=1, sticky="ns", padx=(p(6), 0))
-        self.log_text.configure(yscrollcommand=scrollbar.set)
+        self.log_scrollbar = ttk.Scrollbar(logs, orient="vertical", command=self.log_text.yview,
+                                           style="Apple.Vertical.TScrollbar")
+        self.log_scrollbar.grid(row=1, column=1, sticky="ns", padx=(p(6), 0))
+        self.log_text.configure(yscrollcommand=self._sync_log_scrollbar)
         self.log_text.tag_configure("success", foreground=c.success)
         self.log_text.tag_configure("error", foreground=c.error)
         self.log_message("准备就绪。选择或拖入一个 .OptisVR / .speos360 观察视角文件。")
@@ -322,6 +325,15 @@ class GifCreatorApp:
         self.start_button.grid(row=0, column=4)
         ttk.Label(main, text=COPYRIGHT, style="Footer.TLabel").grid(row=3, column=0, sticky="e", pady=(p(5), 0))
         self.select_page("settings")
+
+    def _sync_log_scrollbar(self, first: str, last: str) -> None:
+        self.log_scrollbar.set(first, last)
+        scrolling = float(first) > 0 or float(last) < 1
+        managed = bool(self.log_scrollbar.winfo_manager())
+        if scrolling and not managed:
+            self.log_scrollbar.grid()
+        elif not scrolling and managed:
+            self.log_scrollbar.grid_remove()
 
     @staticmethod
     def _hint(parent: tk.Misc, text: str, **grid_options: Any) -> ttk.Label:

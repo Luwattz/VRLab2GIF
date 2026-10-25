@@ -110,7 +110,7 @@ class SlidingSegments(tk.Canvas):
     def _layout(self, *, repaint=False):
         from .appearance import PALETTES
         p = self.appearance.px
-        width, height = min(self.winfo_width(), p(440)), self.winfo_height()
+        width, height = self.winfo_width(), self.winfo_height()
         if min(width, height) < 4:
             return
         if self._size != (width, height):

@@ -1,7 +1,8 @@
 """Present a theme change as one client-area frame on Windows.
 
-The temporary owned surfaces do not activate or intercept input. Only the body
-is composited; both header selectors stay live. Backing widgets are painted once
+The temporary child surfaces do not activate or intercept input. The title and
+body share one composite; both header selectors stay live through cutouts.
+Backing widgets are painted once
 per endpoint instead of broadcasting a ttk theme change on every frame.
 """
 from __future__ import annotations
@@ -11,7 +12,7 @@ from ctypes import wintypes
 import sys
 import tkinter as tk
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 if sys.platform == "win32":
     # Load native capture support at startup, not during the first click.
@@ -34,7 +35,9 @@ def capture_client(root) -> Image.Image:
     try:
         bitmap.CreateCompatibleBitmap(source, width, height)
         previous = memory.SelectObject(bitmap)
-        if not user.PrintWindow(hwnd, memory.GetSafeHdc(), 3):
+        # PW_CLIENTONLY uses the window's paint path, excluding layered child
+        # visuals. PW_RENDERFULLCONTENT would capture our old presentation too.
+        if not user.PrintWindow(hwnd, memory.GetSafeHdc(), 1):
             raise OSError("Cannot capture this application's client area")
         return Image.frombytes("RGB", (width, height), bitmap.GetBitmapBits(True), "raw", "BGRX")
     finally:
@@ -47,12 +50,12 @@ def capture_client(root) -> Image.Image:
 
 
 class _LayerFrame:
-    """Owned, input-transparent native surface with one reusable DIB buffer."""
+    """Input-transparent child surface, clipped by the native frame's corners."""
     def __init__(self, root):
         user, gdi = ctypes.windll.user32, ctypes.windll.gdi32
-        owner = int(root.wm_frame(), 0)
-        self.hwnd = win32gui.CreateWindowEx(0x80000 | 0x20 | 0x08000000 | 0x80,
-                                           "STATIC", "", 0x80000000, 0, 0, 1, 1, owner, 0, 0, None)
+        self.parent = int(root.wm_frame(), 0)
+        self.hwnd = win32gui.CreateWindowEx(0x80000 | 0x20 | 0x08000000,
+                                           "STATIC", "", 0x40000000, 0, 0, 1, 1, self.parent, 0, 0, None)
         self.user, self.gdi = user, gdi
         gdi.CreateCompatibleDC.argtypes, gdi.CreateCompatibleDC.restype = [wintypes.HDC], wintypes.HDC
         gdi.CreateDIBSection.argtypes = [wintypes.HDC, ctypes.c_void_p, wintypes.UINT,
@@ -73,7 +76,7 @@ class _LayerFrame:
         self.shown = False
 
     def draw(self, image, position):
-        self.position = position
+        self.position = win32gui.ScreenToClient(self.parent, position)
         width, height = image.size
         if self.size != image.size:
             if self.bitmap:
@@ -93,7 +96,7 @@ class _LayerFrame:
             self.size = image.size
         pixels = image.convert("RGBA").tobytes("raw", "BGRA")
         ctypes.memmove(self.bits, pixels, len(pixels))
-        point, source = wintypes.POINT(*position), wintypes.POINT(0, 0)
+        point, source = wintypes.POINT(*self.position), wintypes.POINT(0, 0)
         size = wintypes.SIZE(width, height)
         blend = (ctypes.c_ubyte*4)(0, 0, 255, 1)
         if not self.user.UpdateLayeredWindow(self.hwnd, None, ctypes.byref(point), ctypes.byref(size),
@@ -127,9 +130,10 @@ class _LayerFrame:
 
 
 class ThemeScene:
-    def __init__(self, appearance, main, header, pages, paint_header):
+    def __init__(self, appearance, main, header, pages, paint_header, live_controls=()):
         self.appearance, self.root = appearance, appearance.root
         self.main, self.header, self.pages, self.paint_header = main, header, pages, paint_header
+        self.live_controls = live_controls
         self.overlay = None
         self.base = None
         self.active = False
@@ -187,15 +191,30 @@ class ThemeScene:
             appearance._present(PALETTES[target], float(target == "light"), endpoint=True)
             self.root.update_idletasks()
             destination = capture_client(self.root)
-            start = source.crop((0, self.top, width, height))
+            # Header and body backgrounds must use the same DWM submission.
+            # Painting the header in Tk while blending only the body can put
+            # their displayed colors a frame apart, forming a horizontal band.
+            start = source.convert("RGBA")
+            end = destination.convert("RGBA")
+            self.live_boxes = []
+            for control in self.live_controls:
+                left, top = control.winfo_rootx()-x, control.winfo_rooty()-y
+                box = (left, top, left+control.winfo_width(), top+control.winfo_height())
+                self.live_boxes.append(box)
+                # UpdateLayeredWindow expects premultiplied pixels; clear RGB
+                # together with alpha so the cutout contributes no color.
+                for image in (start, end):
+                    ImageDraw.Draw(image).rectangle((box[0], box[1], box[2]-1, box[3]-1),
+                                                   fill=(0, 0, 0, 0))
             appearance.colors, appearance.blend = old_colors, old_amount
             appearance._freeze_caption = False
             self.paint_header()
             self.root.update_idletasks()
-            # An opaque destination layer also covers gaps/margins whose live
-            # parent background belongs to the independently animated header.
-            self.base.draw(destination.crop((0, self.top, width, height)), (x, y+self.top))
-            self.overlay.draw(start, (x, y+self.top))
+            # Gaps and margins share the same presentation as the title/body.
+            # Child layers include the bottom padding and inherit the native
+            # frame's clipping, including its rounded corners and snap state.
+            self.base.draw(end, (x, y))
+            self.overlay.draw(start, (x, y))
             win32gui.SetWindowPos(self.overlay.hwnd, 0, 0, 0, 0, 0, 0x13)
             self.source_amount = old_amount
             self.active = True
@@ -208,11 +227,14 @@ class ThemeScene:
             return False
 
     def render(self, amount):
-        # Source pixels are uploaded once. DWM composites the whole body with
+        # Source pixels are uploaded once. DWM composites title and body with
         # one opacity; no per-frame bitmap copy or per-widget color broadcast.
         opacity = round(255*(1-amount if self.source_amount == 0 else amount))
-        self.overlay.opacity(opacity)
         self.paint_header()
+        # Paint the exposed selector cutouts before submitting the composite.
+        self.root.update_idletasks()
+        if self.active:
+            self.overlay.opacity(opacity)
 
     def stop(self):
         self.active = False

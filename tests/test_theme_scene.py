@@ -1,6 +1,7 @@
 """Lifecycle/input regressions for Windows' composited theme body."""
 import ctypes
 import sys
+import time
 import unittest
 from unittest.mock import patch
 
@@ -30,7 +31,7 @@ class ThemeSceneTests(unittest.TestCase):
         self.fade.cancel()
         self.assertTrue(self.fade.scene.active, self.fade.scene.last_error)
 
-    def test_owned_layers_pass_input_without_changing_root_style_or_focus(self):
+    def test_child_layers_pass_input_without_changing_root_style_or_focus(self):
         import win32gui
         app = self.app
         hwnd = int(self.root.wm_frame(), 0)
@@ -43,7 +44,8 @@ class ThemeSceneTests(unittest.TestCase):
         self.assertEqual(self.root.focus_get(), focus)
         self.assertEqual(win32gui.GetWindowLong(hwnd, -20), original_style)
         for layer in (self.fade.scene.overlay, self.fade.scene.base):
-            self.assertEqual(win32gui.GetWindow(layer.hwnd, 4), hwnd)
+            self.assertEqual(win32gui.GetParent(layer.hwnd), hwnd)
+            self.assertEqual(win32gui.GetWindowLong(layer.hwnd, -16) & 0xc0000000, 0x40000000)
             self.assertEqual(win32gui.GetWindowLong(layer.hwnd, -20) & 0x08000020, 0x08000020)
         hit = win32gui.WindowFromPoint(point)
         self.assertEqual(win32gui.GetAncestor(hit, 2), baseline)
@@ -60,6 +62,192 @@ class ThemeSceneTests(unittest.TestCase):
         self.assertIn("a", app.input_file_var.get())
         self.assertEqual(app.appearance.colors, PALETTES["light"])
         self.assertIsNone(self.fade.timer_id)
+
+    def test_preparation_and_fade_layers_cover_bottom_inside_native_frame(self):
+        import win32gui
+        from vrlab2gif.theme_scene import _LayerFrame
+
+        original_draw = _LayerFrame.draw
+        rectangles = []
+
+        def draw(layer, image, position):
+            original_draw(layer, image, position)
+            rectangles.append(win32gui.GetWindowRect(layer.hwnd))
+
+        for compact in (False, True):
+            if compact:
+                width, height = self.root.minsize()
+                self.root.geometry(f"{width}x{height}")
+                self.root.update()
+            client_bottom = self.root.winfo_rooty() + self.root.winfo_height()
+            for mode in ("light", "dark"):
+                with self.subTest(compact=compact, target=mode):
+                    rectangles.clear()
+                    with patch.object(_LayerFrame, "draw", new=draw):
+                        self.start(mode)
+                    # Include the initial shield used during target capture,
+                    # not only the two final body layers.
+                    self.assertEqual(len(rectangles), 3)
+                    self.assertTrue(all(rect[3] == client_bottom for rect in rectangles), rectangles)
+                    for amount in (.2, .5, .8):
+                        self.fade.render(amount)
+                        for layer in (self.fade.scene.base, self.fade.scene.overlay):
+                            self.assertEqual(win32gui.GetWindowRect(layer.hwnd)[3], client_bottom)
+                            self.assertEqual(win32gui.GetParent(layer.hwnd), int(self.root.wm_frame(), 0))
+                    self.fade.finish()
+                    self.root.update()
+
+    def test_captured_destination_contains_target_body_colors_behind_layers(self):
+        from vrlab2gif.theme_scene import capture_client
+        captures = []
+
+        def capture(root):
+            picture = capture_client(root)
+            captures.append(picture)
+            return picture
+
+        for mode, source_mode in (("light", "dark"), ("dark", "light")):
+            captures.clear()
+            with patch("vrlab2gif.theme_scene.capture_client", side_effect=capture):
+                self.start(mode)
+            self.assertEqual(len(captures), 2)
+            # The side margin belongs to the body but is clear of controls.
+            point = (0, self.root.winfo_height() // 2)
+            for picture, expected in zip(captures, (source_mode, mode)):
+                background = PALETTES[expected].background
+                color = tuple(int(background[i:i+2], 16) for i in (1, 3, 5))
+                self.assertEqual(picture.getpixel(point), color)
+                card = self.app.settings_card
+                surface_point = (card.winfo_rootx()-self.root.winfo_rootx()+card.winfo_width()//2,
+                                 card.winfo_rooty()-self.root.winfo_rooty()+self.app.appearance.px(4))
+                surface = PALETTES[expected].surface
+                self.assertEqual(picture.getpixel(surface_point),
+                                 tuple(int(surface[i:i+2], 16) for i in (1, 3, 5)))
+            self.fade.finish()
+            self.root.update()
+
+    def test_title_and_body_share_one_frame_with_live_selector_cutouts(self):
+        import win32gui
+        self.start()
+        x, y = self.root.winfo_rootx(), self.root.winfo_rooty()
+        bottom = y + self.root.winfo_height()
+        for layer in (self.fade.scene.base, self.fade.scene.overlay):
+            self.assertEqual(win32gui.GetWindowRect(layer.hwnd),
+                             (x, y, x+self.root.winfo_width(), bottom))
+            pixels = ctypes.string_at(layer.bits, layer.size[0]*layer.size[1]*4)
+            for control in (self.app.theme_switch, self.app.navigation):
+                left, top = control.winfo_rootx()-x, control.winfo_rooty()-y
+                for dx, dy in ((0, 0), (control.winfo_width()//2, control.winfo_height()//2),
+                               (control.winfo_width()-1, control.winfo_height()-1)):
+                    offset = ((top+dy)*layer.size[0]+left+dx)*4
+                    self.assertEqual(pixels[offset:offset+4], b"\0\0\0\0")
+            # Outside those cutouts, title and body backgrounds are opaque
+            # pixels in the same native bitmap, updated by one opacity call.
+            for row in (self.app.heading.winfo_rooty()-y, self.root.winfo_height()//2):
+                self.assertEqual(pixels[(row*layer.size[0])*4+3], 255)
+
+    def test_displayed_background_is_uniform_before_tk_idle_paint(self):
+        from PIL import ImageGrab
+        self.root.attributes("-topmost", True)
+        self.root.update()
+        p = self.app.appearance.px
+        x, y = self.root.winfo_rootx(), self.root.winfo_rooty()
+        width, height = self.root.winfo_width(), self.root.winfo_height()
+        points = ((p(8), self.app.heading.winfo_rooty()-y+p(4)),
+                  (p(8), height//2), (width//2, height-2))
+        for mode in ("light", "dark"):
+            self.start(mode)
+            self.root.update_idletasks()
+            for amount in (.2, .5, .8):
+                self.fade.render(amount)
+                # Deliberately leave Tk's header paint queued. DWM must still
+                # display matching title/body backgrounds in this frame.
+                ctypes.windll.dwmapi.DwmFlush()
+                picture = ImageGrab.grab(bbox=(x, y, x+width, y+height),
+                                         include_layered_windows=True)
+                colors = [picture.getpixel(point) for point in points]
+                self.assertLessEqual(max(abs(a-b) for color in colors[1:]
+                                         for a, b in zip(color, colors[0])), 2, colors)
+                self.root.update_idletasks()
+            self.fade.finish()
+            self.root.update()
+
+    def test_target_preparation_preserves_source_bottom_strip_and_native_corners(self):
+        from PIL import ImageChops, ImageGrab
+        import win32gui
+        from vrlab2gif.theme_scene import capture_client
+
+        self.root.attributes("-topmost", True)
+        self.root.update()
+        hwnd = int(self.root.wm_frame(), 0)
+        bounds = win32gui.GetWindowRect(hwnd)
+        # A stable backing surface makes the pixels outside native rounded
+        # corners deterministic even if other applications repaint behind us.
+        backdrop = win32gui.CreateWindowEx(0x08000080, "STATIC", "", 0x90000004,
+            bounds[0]-20, bounds[1]-20, bounds[2]-bounds[0]+40, bounds[3]-bounds[1]+40,
+            0, 0, 0, None)
+
+        def screen():
+            ctypes.windll.dwmapi.DwmFlush()
+            return ImageGrab.grab(bbox=bounds, include_layered_windows=True)
+
+        def settled_screen():
+            # Windows animates a new window's border/shadow independently of
+            # our theme. Wait for that native decoration to settle before
+            # comparing its silhouette with the preparation shield.
+            previous = screen()
+            size = self.app.appearance.px(20)
+            boxes = [(left, previous.height-size, left+size, previous.height)
+                     for left in (0, previous.width-size)]
+            stable = 0
+            deadline = time.monotonic()+2
+            while time.monotonic() < deadline:
+                picture = screen()
+                unchanged = all(ImageChops.difference(previous.crop(box), picture.crop(box)).getbbox() is None
+                                for box in boxes)
+                stable = stable+1 if unchanged else 0
+                if stable >= 3:
+                    return picture
+                previous = picture
+            self.fail("Native border/shadow did not settle before corner comparison")
+
+        try:
+            self.root.update()
+            for target, source in (("light", "dark"), ("dark", "light")):
+                before = settled_screen()
+                during = []
+                count = 0
+
+                def capture(root):
+                    nonlocal count
+                    count += 1
+                    image = capture_client(root)
+                    if count == 2:
+                        # The backing controls have already been painted in
+                        # the target theme, before the fade has even started.
+                        during.append(screen())
+                    return image
+
+                with patch("vrlab2gif.theme_scene.capture_client", side_effect=capture):
+                    self.start(target)
+                self.assertEqual(len(during), 1)
+                image = during[0]
+                x = self.root.winfo_rootx()-bounds[0]
+                y = self.root.winfo_rooty()-bounds[1]
+                color = PALETTES[source].background
+                rgb = tuple(int(color[i:i+2], 16) for i in (1, 3, 5))
+                for distance in (1, 2, self.app.appearance.px(6)):
+                    point = (x+self.root.winfo_width()//2, y+self.root.winfo_height()-distance)
+                    self.assertEqual(image.getpixel(point), rgb)
+                size = self.app.appearance.px(20)
+                for left in (0, image.width-size):
+                    box = (left, image.height-size, left+size, image.height)
+                    difference = ImageChops.difference(before.crop(box), image.crop(box))
+                    self.assertLessEqual(max(channel[1] for channel in difference.getextrema()), 2)
+                self.fade.finish()
+                self.root.update()
+        finally:
+            win32gui.DestroyWindow(backdrop)
 
     def test_switching_pages_finishes_scene_and_keeps_filters_and_log(self):
         self.app.h_min_var.set("-30")

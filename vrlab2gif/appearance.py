@@ -225,14 +225,16 @@ class AppleAppearance:
         self._progress()
         self._option_controls()
         self.style.layout("Apple.Vertical.TScrollbar", [
-            ("Vertical.Scrollbar.trough", {"sticky": "ns", "children": [
+            ("Vertical.Scrollbar.trough", {"sticky": "nsew", "children": [
                 ("Vertical.Scrollbar.thumb", {"expand": "1", "sticky": "nswe"}),
             ]}),
         ])
         self.style.configure(
             "Apple.Vertical.TScrollbar", background=c.scrollbar, troughcolor=c.surface,
             borderwidth=0, bordercolor=c.surface, lightcolor=c.scrollbar,
-            darkcolor=c.scrollbar, arrowsize=0, width=self.px(7),
+            # Clam derives the thumb's width from arrowsize even when the
+            # layout has no arrows. Zero squeezes it into a one-pixel grip.
+            darkcolor=c.scrollbar, arrowsize=self.px(7), gripcount=0,
         )
         self.style.map("Apple.Vertical.TScrollbar", background=[("active", c.scrollbar_hover), ("pressed", c.scrollbar_hover)])
         self.style.configure("Page.Apple.Vertical.TScrollbar", troughcolor=c.background, bordercolor=c.background)
