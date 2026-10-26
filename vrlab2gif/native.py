@@ -23,6 +23,37 @@ from .observer import restore_export_angles
 NATIVE_EXTENSIONS = {".optisvr", ".speos360"}
 
 
+class VRLabRegistrationError(RuntimeError):
+    """The current user cannot resolve a usable VRLab automation server."""
+
+    def __init__(self, detail: str | None = None) -> None:
+        self.detail = detail
+        message = (
+            "未检测到可用的 Ansys VRLab 自动化（COM）注册。\n"
+            "已安装 Speos、能手动打开视角文件，也可能尚未完成自动化注册。\n\n"
+            "方法一：完成一次注册\n"
+            "1. 保存工作并关闭所有 VRLab 窗口。\n"
+            "2. 在要使用的 Speos 版本安装目录中找到 VRLab.exe"
+            "（通常位于 Optical Products\\Viewers），右键“以管理员身份运行”一次。\n"
+            "3. 等待主界面完整打开后正常退出，再回本程序点击“开始生成 GIF”重试。\n"
+            "注册后可正常以普通用户权限运行本程序，无需每次提权。\n\n"
+            "方法二：使用 PNG 文件夹\n"
+            "没有管理员权限时，可请 IT 协助注册；也可在 VRLab 中手动导出带 H/V 角度的 PNG，"
+            "点击本程序“PNG 文件夹…”直接生成 GIF，无需 COM 注册。\n"
+            "PNG 命名示例：demo_Image_-30°_10°.png。"
+        )
+        if detail:
+            message += f"\n\n检查信息：{detail}"
+        super().__init__(message)
+
+
+def check_native_registration() -> tuple[str, Path]:
+    """Read registration only; never activate COM, elevate or write registry keys."""
+    if sys.platform != "win32":
+        raise RuntimeError("VRLab 文件直接转换需要 Windows 和已安装的 Ansys VRLab。")
+    return _registered_server()
+
+
 def validate_native_source(source: Path) -> None:
     if source.is_dir():
         raise ValueError("不支持文件夹输入，请选择 .OptisVR 或 .speos360 视角文件。")
@@ -51,22 +82,34 @@ def _read_json(path: Path) -> dict:
 def _registered_server() -> tuple[str, Path]:
     """Read registration without registering or modifying an Ansys installation."""
     import winreg
-    for hive in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE):
-        for view in (winreg.KEY_WOW64_64KEY, winreg.KEY_WOW64_32KEY):
-            try:
-                access = winreg.KEY_READ | view
-                with winreg.OpenKey(hive, r"Software\Classes\HDRIViewer.Application\CLSID", 0, access) as key:
-                    clsid = winreg.QueryValue(key, None)
-                with winreg.OpenKey(hive, rf"Software\Classes\CLSID\{clsid}\LocalServer32", 0, access) as key:
-                    command = winreg.QueryValue(key, None).strip()
-                match = re.match(r'^"([^"]+)"|^(.+?\.exe)(?:\s|$)', command, re.I)
-                if match:
-                    executable = Path(os.path.expandvars(match.group(1) or match.group(2)))
-                    if executable.name.lower() == "vrlab.exe" and executable.is_file():
-                        return clsid, executable.resolve()
-            except OSError:
+    # HKCR is Windows' effective merged per-user/per-machine view. A ProgID
+    # and its CLSID need not have been registered in the same backing hive.
+    for view in (winreg.KEY_WOW64_64KEY, winreg.KEY_WOW64_32KEY):
+        try:
+            access = winreg.KEY_READ | view
+            with winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, r"HDRIViewer.Application\CLSID", 0, access) as key:
+                clsid = winreg.QueryValue(key, None)
+            if not isinstance(clsid, str) or not clsid.strip():
                 continue
-    raise RuntimeError("未找到已注册的 Ansys Virtual Reality Lab。请先安装并正常启动 VRLab，确认授权可用。")
+            with winreg.OpenKey(winreg.HKEY_CLASSES_ROOT, rf"CLSID\{clsid}\LocalServer32", 0, access) as key:
+                command = winreg.QueryValue(key, None)
+            if not isinstance(command, str):
+                continue
+            match = re.match(r'^"([^"]+)"|^(.+?\.exe)(?:\s|$)', command.strip(), re.I)
+            if match:
+                executable = Path(os.path.expandvars(match.group(1) or match.group(2)))
+                if executable.name.lower() == "vrlab.exe" and executable.is_file():
+                    return clsid, executable.resolve()
+        except OSError:
+            continue
+    raise VRLabRegistrationError()
+
+
+def _is_registration_error(error: Exception) -> bool:
+    code = getattr(error, "hresult", None)
+    if code is None and error.args:
+        code = error.args[0]
+    return isinstance(code, int) and (code & 0xffffffff) in (0x80040154, 0x800401F3)
 
 
 def _owned_process(identity: dict):
@@ -138,6 +181,8 @@ def export_helper(job_path: Path) -> int:
         try:
             app = win32com.client.DispatchEx(clsid)
         except Exception as exc:
+            if _is_registration_error(exc):
+                raise VRLabRegistrationError(str(exc)) from exc
             raise RuntimeError(f"无法连接 Ansys VRLab。请确认安装、COM 注册及授权正常，且与本程序以相同用户权限运行。详细信息：{exc}") from exc
         member = app.GetPID
         pid = int(member() if callable(member) else member)
@@ -165,7 +210,10 @@ def export_helper(job_path: Path) -> int:
         _write_json(result_path, {"ok": True, "count": len(paths)})
         return 0
     except Exception as exc:
-        _write_json(result_path, {"ok": False, "error": str(exc)})
+        result = {"ok": False, "error": str(exc)}
+        if isinstance(exc, VRLabRegistrationError):
+            result.update(error_code="vrlab_registration", registration_detail=exc.detail)
+        _write_json(result_path, result)
         return 1
     finally:
         app = None
@@ -271,6 +319,8 @@ def create_native_gifs(
                     raise RuntimeError("等待 VRLab 超时（10 分钟）。请检查 Ansys 授权、弹出的对话框及文件是否可正常打开。")
             result = _read_json(job_dir / "result.json")
             if process.returncode != 0 or not result.get("ok"):
+                if result.get("error_code") == "vrlab_registration":
+                    raise VRLabRegistrationError(result.get("registration_detail"))
                 raise RuntimeError(result.get("error") or "VRLab 导出进程未正常完成，请检查 Ansys 安装与授权。")
         finally:
             # Stop the helper first so no late ownership publication is missed.

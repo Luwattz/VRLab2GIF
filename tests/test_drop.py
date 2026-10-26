@@ -8,6 +8,7 @@ from unittest.mock import patch
 from tkinterdnd2 import COPY, REFUSE_DROP, TkinterDnD
 
 from vrlab2gif.app import GifCreatorApp
+from vrlab2gif.native import VRLabRegistrationError
 
 
 class FileDropTests(unittest.TestCase):
@@ -18,8 +19,15 @@ class FileDropTests(unittest.TestCase):
         self.second = self.directory / "other.SPEOS360"
         for source in (self.first, self.second):
             source.write_bytes(b"native fixture")
+        self.png_dir = self.directory / "PNG 导出 {视角}.v1"
+        self.png_dir.mkdir()
+        self.other_png_dir = self.directory / "other PNG folder"
+        self.other_png_dir.mkdir()
         self.root = TkinterDnD.Tk()
         self.root.withdraw()
+        self.registration_patch = patch("vrlab2gif.app.check_native_registration", return_value=None)
+        self.registration_check = self.registration_patch.start()
+        self.addCleanup(self.registration_patch.stop)
         self.errors = []
         self.root.report_callback_exception = lambda kind, error, traceback: self.errors.append(error)
         self.app = GifCreatorApp(self.root)
@@ -58,12 +66,39 @@ class FileDropTests(unittest.TestCase):
         self.assertEqual(Path(self.app.input_file_var.get()), self.second)
         self.assertEqual(self.app.page_var.get(), "settings")
 
+    def test_native_ole_bridge_accepts_png_folder_with_unicode_spaces_and_braces(self):
+        self.app.select_page("logs")
+        self.assertEqual(self.ole_enter(self.app.input_entry, [self.png_dir]), COPY)
+        self.assertTrue(self.app._drop_hover)
+        self.assertEqual(self.ole_drop(self.app.input_entry, [self.png_dir]), COPY)
+        self.assertEqual(Path(self.app.input_file_var.get()), self.png_dir)
+        self.assertEqual(Path(self.app.output_dir_var.get()),
+                         self.directory / (self.png_dir.name + "_GIF"))
+        self.assertEqual(self.app.page_var.get(), "settings")
+        self.assertFalse(self.app._drop_hover)
+        self.assertFalse(self.app._processing, "Dropping a folder must only select it")
+
+    def test_native_drop_without_com_retains_input_and_shows_registration_options(self):
+        self.registration_check.side_effect = VRLabRegistrationError()
+        with patch("vrlab2gif.app.messagebox.showwarning") as warning, \
+                patch("vrlab2gif.app.create_native_gifs") as native:
+            self.assertEqual(self.ole_enter(self.app.drop_surface, [self.first]), COPY)
+            self.assertEqual(self.ole_drop(self.app.drop_surface, [self.first]), COPY)
+        self.assertEqual(Path(self.app.input_file_var.get()), self.first)
+        self.assertTrue(self.app.registration_notice.winfo_manager())
+        self.assertFalse(self.app._processing)
+        self.assertIsNone(self.app._worker)
+        native.assert_not_called()
+        warning.assert_not_called()
+
     def test_invalid_drop_preserves_current_input_and_custom_output(self):
         self.app.select_input_file(str(self.first))
         self.app.output_dir_var.set(str(self.directory / "custom"))
         png = self.directory / "image.png"
         png.write_bytes(b"image")
-        for paths in ([self.first, self.second], [self.directory], [png], [self.directory / "missing.OptisVR"]):
+        for paths in ([self.first, self.second], [self.first, self.png_dir],
+                      [self.png_dir, self.other_png_dir], [png],
+                      [self.directory / "missing.OptisVR"], [self.directory / "missing folder"]):
             with self.subTest(paths=paths):
                 self.assertEqual(self.app._on_file_drop(self.event(*paths)), REFUSE_DROP)
                 self.assertEqual(Path(self.app.input_file_var.get()), self.first)
@@ -87,17 +122,17 @@ class FileDropTests(unittest.TestCase):
         self.assertFalse(self.app._drop_hover)
         self.app._set_processing(False)
 
-    def test_png_folder_cannot_start_a_worker(self):
-        self.app.input_file_var.set(str(self.directory))
-        with patch("vrlab2gif.app.messagebox.showerror") as error, \
-                patch("vrlab2gif.app.create_native_gifs") as convert:
-            self.app.start_processing()
-        self.assertFalse(self.app._processing)
-        self.assertIsNone(self.app._worker)
-        convert.assert_not_called()
-        error.assert_called_once()
-        self.assertIn("不支持文件夹", error.call_args.args[1])
-        self.assertFalse(hasattr(self.app, "input_folder_button"))
+    def test_png_folder_selection_is_blocked_while_processing(self):
+        self.app.select_input_file(str(self.first))
+        self.app._set_processing(True)
+        with patch("vrlab2gif.app.filedialog.askdirectory") as choose:
+            self.app.ask_input_dir()
+        choose.assert_not_called()
+        self.assertEqual(self.ole_enter(self.app.input_entry, [self.png_dir]), REFUSE_DROP)
+        self.assertEqual(self.ole_drop(self.app.input_entry, [self.png_dir]), REFUSE_DROP)
+        self.assertEqual(Path(self.app.input_file_var.get()), self.first)
+        self.assertTrue(self.app._processing)
+        self.app._set_processing(False)
 
     def test_theme_switch_preserves_drag_feedback_and_leave_restores_surface(self):
         self.app._on_drag_enter(self.event(self.first))
@@ -105,7 +140,7 @@ class FileDropTests(unittest.TestCase):
         c = self.app.appearance.colors
         self.assertEqual(self.app.drop_surface.itemcget(self.app._drop_border, "outline"), c.accent)
         self.app._on_drag_leave(self.event(self.first))
-        self.assertEqual(self.app.drop_surface.itemcget(self.app._drop_border, "outline"), c.entry_border)
+        self.assertEqual(self.app.drop_surface.itemcget(self.app._drop_border, "outline"), c.surface)
 
 
 if __name__ == "__main__":

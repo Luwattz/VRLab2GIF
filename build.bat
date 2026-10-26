@@ -6,5 +6,5 @@ if errorlevel 1 (
     pause
     exit /b 1
 )
-echo The application is in the dist folder.
+echo Single-file and folder distributions are in the selected output folder, dist by default.
 pause

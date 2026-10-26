@@ -14,8 +14,8 @@ from PIL import Image
 from tkinterdnd2 import TkinterDnD
 
 from vrlab2gif.app import GifCreatorApp
-from vrlab2gif.core import ConversionResult
-from vrlab2gif.native import convert_exported_views
+from vrlab2gif.core import ConversionResult, create_gifs
+from vrlab2gif.native import VRLabRegistrationError, convert_exported_views
 from vrlab2gif.ppt_dialog import PptExportRequest
 from vrlab2gif.ppt import PptOptions
 from zipfile import ZipFile
@@ -32,6 +32,9 @@ class DesktopIntegrationTests(unittest.TestCase):
         self.source.write_bytes(b"native fixture")
         self.root = TkinterDnD.Tk()
         self.root.withdraw()
+        self.registration_patch = patch("vrlab2gif.app.check_native_registration", return_value=None)
+        self.registration_check = self.registration_patch.start()
+        self.addCleanup(self.registration_patch.stop)
         self.callback_errors: list[BaseException] = []
         self.root.report_callback_exception = lambda kind, error, traceback: self.callback_errors.append(error)
         self.app = GifCreatorApp(self.root)
@@ -153,6 +156,154 @@ class DesktopIntegrationTests(unittest.TestCase):
         self.assertEqual(str(self.app.input_browse_button.cget("state")), "normal")
         self.assertIn("3 张图片，1 个 GIF", self.app.status_var.get())
         self.assertEqual(self.dialogs, [])
+
+    def test_png_folder_selection_defaults_output_and_preserves_custom_destination(self) -> None:
+        folder = self.directory / "导出 PNG.v1"
+        folder.mkdir()
+        self.app.output_dir_var.set("")
+        with patch("vrlab2gif.app.filedialog.askdirectory", return_value=str(folder)) as choose:
+            self.app.ask_input_dir()
+        choose.assert_called_once()
+        self.assertEqual(Path(self.app.input_file_var.get()), folder)
+        self.assertEqual(Path(self.app.output_dir_var.get()), self.directory / "导出 PNG.v1_GIF")
+        self.assertFalse(self.app._processing)
+
+        custom = self.directory / "custom GIF output"
+        self.app.output_dir_var.set(str(custom))
+        with patch("vrlab2gif.app.filedialog.askdirectory", return_value=str(self.input_dir)):
+            self.app.ask_input_dir()
+        self.assertEqual(Path(self.app.input_file_var.get()), self.input_dir)
+        self.assertEqual(Path(self.app.output_dir_var.get()), custom)
+
+    def test_missing_com_file_selection_keeps_input_and_offers_nonmodal_guidance(self) -> None:
+        self.registration_check.side_effect = VRLabRegistrationError()
+        with patch("vrlab2gif.app.filedialog.askopenfilename", return_value=str(self.source)), \
+                patch("win32com.client.DispatchEx") as launch:
+            self.app.ask_input_file()
+        self.assertEqual(Path(self.app.input_file_var.get()), self.source)
+        self.assertEqual(Path(self.app.output_dir_var.get()), self.output_dir)
+        self.assertTrue(self.app.registration_notice.winfo_manager())
+        self.assertFalse(self.app.source_hint.winfo_manager())
+        self.assertEqual(self.dialogs, [], "Importing a file should provide inline guidance without a modal")
+        self.assertFalse(self.app._processing)
+        self.assertIsNone(self.app._worker)
+        launch.assert_not_called()
+
+    def test_registration_guide_button_explains_manual_options_without_launching_ansys(self) -> None:
+        self.registration_check.side_effect = VRLabRegistrationError()
+        self.app.select_input_file(str(self.source))
+        with patch("vrlab2gif.app.messagebox.showwarning") as warning, \
+                patch("win32com.client.DispatchEx") as launch:
+            self.app.registration_help_button.invoke()
+        warning.assert_called_once()
+        message = warning.call_args.args[1]
+        for text in ("以管理员身份运行", "VRLab.exe", "PNG 文件夹", "IT"):
+            self.assertIn(text, message)
+        self.assertEqual(Path(self.app.input_file_var.get()), self.source)
+        launch.assert_not_called()
+
+    def test_missing_com_start_does_not_launch_worker_and_explains_both_options(self) -> None:
+        self.registration_check.side_effect = VRLabRegistrationError()
+        self.app.select_page("filters")
+        with patch("vrlab2gif.app.create_native_gifs") as native, \
+                patch("vrlab2gif.app.messagebox.showwarning") as warning:
+            self.app.start_processing()
+        native.assert_not_called()
+        self.assertFalse(self.app._processing)
+        self.assertIsNone(self.app._worker)
+        self.assertTrue(self.app.registration_notice.winfo_manager())
+        self.assertEqual(self.app.page_var.get(), "settings")
+        warning.assert_called_once()
+        message = warning.call_args.args[1]
+        for text in ("以管理员身份运行", "VRLab.exe", "PNG 文件夹"):
+            self.assertIn(text, message)
+
+    def test_registration_can_be_repaired_then_retried_without_reselecting_input(self) -> None:
+        self._picture(0)
+        self._picture(1)
+        self.registration_check.side_effect = VRLabRegistrationError()
+        self.assertTrue(self.app.select_input_file(str(self.source)))
+        self.assertTrue(self.app.registration_notice.winfo_manager())
+        self.registration_check.side_effect = None
+        self.app.start_processing()
+        self.assertTrue(self.app._processing)
+        self._pump_until(lambda: not self.app._processing)
+        self.assertFalse(self.app.registration_notice.winfo_manager())
+        self.assertTrue(self.app.source_hint.winfo_manager())
+        self.assertEqual(Path(self.app.input_file_var.get()), self.source)
+        self.assertIn("生成完成", self.app.status_var.get())
+        self.assertEqual(self.dialogs, [])
+
+    def test_registration_notice_can_switch_to_png_without_checking_com(self) -> None:
+        self.registration_check.side_effect = VRLabRegistrationError()
+        self.app.select_input_file(str(self.source))
+        self.registration_check.reset_mock()
+        with patch("vrlab2gif.app.filedialog.askdirectory", return_value=str(self.input_dir)):
+            self.app.registration_png_button.invoke()
+        self.registration_check.assert_not_called()
+        self.assertEqual(Path(self.app.input_file_var.get()), self.input_dir)
+        self.assertFalse(self.app.registration_notice.winfo_manager())
+        self.assertTrue(self.app.source_hint.winfo_manager())
+
+    def test_helper_registration_error_keeps_actionable_guidance_on_settings_page(self) -> None:
+        with patch("vrlab2gif.app.create_native_gifs", side_effect=VRLabRegistrationError()):
+            self.app.start_processing()
+            self._pump_until(lambda: not self.app._processing)
+        self.assertEqual([kind for kind, _ in self.dialogs], ["showwarning"])
+        self.assertEqual(self.app.page_var.get(), "settings")
+        self.assertTrue(self.app.registration_notice.winfo_manager())
+        self.assertEqual(Path(self.app.input_file_var.get()), self.source)
+
+    def test_png_folder_runs_real_encoder_off_tk_thread_without_native_export(self) -> None:
+        self._picture(0)
+        self._picture(1)
+        self.app.input_file_var.set(str(self.input_dir))
+        self.app.delay_var.set("420")
+        self.app.font_size_var.set("18")
+        self.registration_check.side_effect = VRLabRegistrationError()
+        self.registration_check.reset_mock()
+        threads = []
+
+        def encode(*args, **kwargs):
+            threads.append(threading.get_ident())
+            return create_gifs(*args, **kwargs)
+
+        with patch("vrlab2gif.app.create_native_gifs") as native, \
+                patch("vrlab2gif.app.create_gifs", side_effect=encode) as png:
+            self.app.start_processing()
+            self.assertTrue(self.app._processing)
+            self.assertEqual(str(self.app.input_entry.cget("state")), "disabled")
+            self._pump_until(lambda: not self.app._processing)
+        native.assert_not_called()
+        self.registration_check.assert_not_called()
+        png.assert_called_once()
+        self.assertNotEqual(threads, [threading.get_ident()])
+        self.assertEqual(png.call_args.kwargs["font_size"], 18)
+        self.assertEqual(self.dialogs, [])
+        self.assertEqual(self.app._completed_source, self.input_dir)
+        self.assertFalse(self.app.ppt_button.instate(["disabled"]))
+        self.assertIn("生成完成", self.app.status_var.get())
+        for name in ("vertical_angle_0.0.gif", "collection_all_angles.gif"):
+            with Image.open(self.output_dir / name) as image:
+                self.assertEqual(image.n_frames, 2)
+                self.assertEqual(image.info["duration"], 420)
+
+    def test_png_folder_conversion_applies_angle_filters(self) -> None:
+        for index in range(3):
+            self._picture(index)
+        self.app.input_file_var.set(str(self.input_dir))
+        self.app.h_min_var.set("1")
+        self.app.h_max_var.set("1")
+        with patch("vrlab2gif.app.create_native_gifs") as native:
+            self.app.start_processing()
+            self._pump_until(lambda: not self.app._processing)
+        native.assert_not_called()
+        self.assertEqual(self.dialogs, [])
+        self.assertIn("1 张图片，2 个 GIF", self.app.status_var.get())
+        with Image.open(self.output_dir / "collection_all_angles.gif") as image:
+            self.assertEqual(image.n_frames, 1)
+            # H=1 is the blue fixture; the other angles are red.
+            self.assertEqual(image.convert("RGB").getpixel((299, 159)), (0, 0, 255))
 
     def test_worker_error_returns_to_ready_and_a_second_run_can_succeed(self) -> None:
         path = self.input_dir / "0_Image_0\N{DEGREE SIGN}_0\N{DEGREE SIGN}.png"

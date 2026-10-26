@@ -63,8 +63,21 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "PyInstaller build failed." }
 
     $executable = Join-Path $releaseRoot "VRLab2GIF.exe"
-    $smoke = Start-Process -FilePath $executable -ArgumentList "--smoke-test" -WorkingDirectory $PSScriptRoot -WindowStyle Hidden -Wait -PassThru
-    if ($smoke.ExitCode -ne 0) { throw "Packaged startup test failed with exit code $($smoke.ExitCode)." }
+    $folderRoot = Join-Path $releaseRoot "VRLab2GIF"
+    $folderExecutable = Join-Path $folderRoot "VRLab2GIF.exe"
+    $distributions = @(
+        @{ Name = "Single-file"; Executable = $executable; Directory = $releaseRoot },
+        @{ Name = "Folder"; Executable = $folderExecutable; Directory = $folderRoot }
+    )
+    foreach ($distribution in $distributions) {
+        # Run outside the source tree so missing packaged resources cannot be
+        # supplied accidentally by the checkout's working directory.
+        $smoke = Start-Process -FilePath $distribution.Executable -ArgumentList "--smoke-test" -WorkingDirectory $distribution.Directory -WindowStyle Hidden -Wait -PassThru
+        if ($smoke.ExitCode -ne 0) {
+            throw "$($distribution.Name) startup test failed with exit code $($smoke.ExitCode)."
+        }
+        Write-Host "$($distribution.Name) startup, PNG/GIF, font, drop and PPT checks passed."
+    }
     Copy-Item -LiteralPath "README.md" -Destination (Join-Path $releaseRoot "README.md") -Force
     Copy-Item -LiteralPath "QUICKSTART.txt" -Destination (Join-Path $releaseRoot "QUICKSTART.txt") -Force
     $releaseDocs = Join-Path $releaseRoot "docs"
@@ -84,7 +97,12 @@ try {
     Copy-Item -LiteralPath "assets\vrlab2gif-logo.png", "assets\vrlab2gif.ico", "assets\LOGO.md" -Destination $releaseAssets -Force
     $releaseFiles = @($executable, (Join-Path $releaseRoot "README.md"), (Join-Path $releaseRoot "QUICKSTART.txt"), $releaseDocs, $releaseAssets)
     Compress-Archive -LiteralPath $releaseFiles -DestinationPath (Join-Path $releaseRoot "VRLab2GIF-Windows-x64.zip") -Force
-    Write-Host "Build complete: $executable"
+    Copy-Item -LiteralPath "README.md", "QUICKSTART.txt" -Destination $folderRoot -Force
+    Copy-Item -LiteralPath $releaseDocs, $releaseAssets -Destination $folderRoot -Recurse -Force
+    Compress-Archive -LiteralPath $folderRoot -DestinationPath (Join-Path $releaseRoot "VRLab2GIF-Windows-x64-folder.zip") -Force
+    Write-Host "Single-file build: $executable"
+    Write-Host "Folder build: $folderExecutable (keep the entire VRLab2GIF folder)"
+    Write-Host "Archives: VRLab2GIF-Windows-x64.zip and VRLab2GIF-Windows-x64-folder.zip"
 }
 finally {
     Pop-Location

@@ -17,8 +17,9 @@ from PIL import Image, ImageTk
 from tkinterdnd2 import COPY, DND_FILES, REFUSE_DROP, TkinterDnD
 
 from . import COPYRIGHT, __version__
-from .core import AngleFilters, ConversionCancelled
-from .native import NATIVE_EXTENSIONS, create_native_gifs, validate_native_source
+from .core import AngleFilters, ConversionCancelled, create_gifs
+from .native import (NATIVE_EXTENSIONS, VRLabRegistrationError, check_native_registration,
+                     create_native_gifs, validate_native_source)
 from .ppt import PptOptions, export_gifs_to_pptx
 from .ppt_dialog import PptExportDialog, PptExportRequest, suggested_ppt_path
 from .appearance import AppleAppearance, RoundedCard, ScrollArea, SegmentedPages, enable_dpi_awareness, window_work_area
@@ -40,7 +41,7 @@ class GifCreatorApp:
         self.h_max_var = tk.StringVar()
         self.v_min_var = tk.StringVar()
         self.v_max_var = tk.StringVar()
-        self.status_var = tk.StringVar(value="就绪，拖入视角文件或点击“选择文件”。")
+        self.status_var = tk.StringVar(value="就绪，选择或拖入视角文件 / PNG 文件夹。")
         self.progress_var = tk.DoubleVar(value=0)
 
         self.log_queue: queue.Queue[tuple[str, Any]] = queue.Queue()
@@ -69,6 +70,7 @@ class GifCreatorApp:
         self._ppt_open_after = False
         self._ppt_request: PptExportRequest | None = None
         self._reveal_dir: Path | None = None
+        self._registration_issue: VRLabRegistrationError | None = None
 
         self._configure_style()
         self._configure_icon()
@@ -127,6 +129,7 @@ class GifCreatorApp:
         self.log_text.tag_configure("error", foreground=c.error)
         self._set_status_tone(self._status_tone)
         self.filter_summary_label.configure(foreground=c.error if self._filter_summary_invalid else c.secondary)
+        self.registration_label.configure(foreground=c.error)
         self._paint_drop_area()
 
     def _refresh_header(self) -> None:
@@ -211,25 +214,42 @@ class GifCreatorApp:
         self.settings_card.grid(row=0, column=0, sticky="ew")
         settings = self.settings_card.content
         settings.columnconfigure(1, weight=1)
-        self.drop_surface = tk.Canvas(settings, height=p(68), width=1,
+        self.drop_surface = tk.Canvas(settings, height=p(112), width=1,
                                       highlightthickness=0, background=c.surface)
         self.drop_surface.grid(row=0, column=0, columnspan=3, sticky="ew")
         self._drop_border = self.drop_surface.create_polygon(0, 0, 0, 0, smooth=True)
-        self._drop_title = self.drop_surface.create_text(0, 0, anchor="w", font="TkDefaultFont")
+        self._drop_title = self.drop_surface.create_text(0, 0, anchor="w", font=self.appearance.hint_font)
+        self._input_label = self.drop_surface.create_text(0, 0, anchor="w", text="输入来源", font="TkDefaultFont")
+        self._output_label = self.drop_surface.create_text(0, 0, anchor="w", text="输出 GIF", font="TkDefaultFont")
         self.input_entry = self._track(ttk.Entry(self.drop_surface, textvariable=self.input_file_var, style="Apple.TEntry", width=1))
         self._drop_entry_window = self.drop_surface.create_window(0, 0, window=self.input_entry, anchor="w")
-        self.input_browse_button = self._track(ttk.Button(self.drop_surface, text="选择文件…", command=self.ask_input_file, style="Secondary.TButton", takefocus=True))
+        self.input_browse_button = self._track(ttk.Button(self.drop_surface, text="视角文件…", command=self.ask_input_file, style="Secondary.TButton", takefocus=True))
         self._drop_button_window = self.drop_surface.create_window(0, 0, window=self.input_browse_button, anchor="e")
+        self.input_folder_button = self._track(ttk.Button(self.drop_surface, text="PNG 文件夹…", command=self.ask_input_dir, style="Secondary.TButton", takefocus=True))
+        self._drop_folder_window = self.drop_surface.create_window(0, 0, window=self.input_folder_button, anchor="e")
+        self.output_entry = self._track(ttk.Entry(self.drop_surface, textvariable=self.output_dir_var, style="Apple.TEntry", width=1))
+        self._drop_output_window = self.drop_surface.create_window(0, 0, window=self.output_entry, anchor="w")
+        self.output_browse_button = self._track(ttk.Button(self.drop_surface, text="更改输出位置…", command=self.ask_output_dir, style="Secondary.TButton", takefocus=True))
+        self._drop_output_button_window = self.drop_surface.create_window(0, 0, window=self.output_browse_button, anchor="e")
         self.drop_surface.bind("<Configure>", self._layout_drop_area)
-        ttk.Label(settings, text="输出 GIF").grid(row=1, column=0, sticky="w", padx=(0, p(12)), pady=(p(6), 0))
-        self.output_entry = self._track(ttk.Entry(settings, textvariable=self.output_dir_var, style="Apple.TEntry", width=1))
-        self.output_entry.grid(row=1, column=1, sticky="ew", pady=(p(6), 0))
-        self.output_browse_button = self._track(ttk.Button(settings, text="更改…", command=self.ask_output_dir, style="Secondary.TButton", takefocus=True))
-        self.output_browse_button.grid(row=1, column=2, sticky="e", padx=(p(8), 0), pady=(p(6), 0))
-        self._hint(settings, "支持观察视角文件；需要本机 Ansys VRLab 及可用授权。", row=2, columnspan=3, pady=(p(2), p(2)))
+        self.source_hint = self._hint(settings, "PNG 文件夹可直接转换；视角文件需要本机 Ansys VRLab 及授权。",
+                                      row=1, columnspan=3, padx=p(12), pady=(p(2), 0))
+        self.registration_notice = ttk.Frame(settings)
+        self.registration_notice.columnconfigure(0, weight=1)
+        self.registration_label = self._hint(self.registration_notice, "未检测到可用的 VRLab COM 注册。",
+                                             row=0, padx=(0, p(6)))
+        self.registration_label.configure(foreground=c.error)
+        self.registration_help_button = self._track(ttk.Button(
+            self.registration_notice, text="注册指引…", command=self.show_registration_guide,
+            style="Inline.TButton", takefocus=True))
+        self.registration_help_button.grid(row=0, column=1, padx=(0, p(6)))
+        self.registration_png_button = self._track(ttk.Button(
+            self.registration_notice, text="改用 PNG…", command=self.ask_input_dir,
+            style="Inline.TButton", takefocus=True))
+        self.registration_png_button.grid(row=0, column=2)
 
         self.parameters_frame = ttk.Frame(settings)
-        self.parameters_frame.grid(row=3, column=0, columnspan=3, sticky="ew")
+        self.parameters_frame.grid(row=2, column=0, columnspan=3, sticky="ew", padx=p(12))
         self.parameters_frame.columnconfigure(0, weight=1, uniform="parameters")
         self.parameters_frame.columnconfigure(1, weight=1, uniform="parameters")
         self.delay_group = ttk.Frame(self.parameters_frame)
@@ -300,7 +320,7 @@ class GifCreatorApp:
         self.log_text.configure(yscrollcommand=self._sync_log_scrollbar)
         self.log_text.tag_configure("success", foreground=c.success)
         self.log_text.tag_configure("error", foreground=c.error)
-        self.log_message("准备就绪。选择或拖入一个 .OptisVR / .speos360 观察视角文件。")
+        self.log_message("准备就绪。选择或拖入视角文件 / PNG 文件夹。")
 
         self.actions_card = RoundedCard(main, self.appearance, padding=12)
         self.actions_card.grid(row=2, column=0, sticky="ew", pady=(p(10), 0))
@@ -408,8 +428,11 @@ class GifCreatorApp:
     def _sync_default_output(self, *args: str) -> None:
         input_text = self.input_file_var.get().strip()
         if input_text:
-            source = Path(input_text)
-            default = str(source.parent / (source.stem + "_GIF")) if source.suffix.lower() in NATIVE_EXTENSIONS else ""
+            source = Path(input_text).expanduser()
+            if source.is_dir():
+                default = str(source.parent / ((source.name or "PNG") + "_GIF"))
+            else:
+                default = str(source.parent / (source.stem + "_GIF")) if source.suffix.lower() in NATIVE_EXTENSIONS else ""
         else:
             default = ""
         current = self.output_dir_var.get().strip()
@@ -428,7 +451,7 @@ class GifCreatorApp:
         return None
 
     def ask_input_file(self) -> None:
-        if self._processing:
+        if self._processing or self._close_requested:
             return
         selected = filedialog.askopenfilename(
             parent=self.root, title="选择 VRLab 观察视角文件（需要本机 Ansys）",
@@ -437,12 +460,23 @@ class GifCreatorApp:
         if selected:
             self.select_input_file(selected)
 
+    def ask_input_dir(self) -> None:
+        if self._processing or self._close_requested:
+            return
+        selected = filedialog.askdirectory(parent=self.root, title="选择已导出 PNG 图片的文件夹", mustexist=True)
+        if selected:
+            self._select_input_source(Path(selected).expanduser())
+
     def select_input_file(self, filename: str) -> bool:
+        return self._select_input_source(Path(filename).expanduser())
+
+    def _select_input_source(self, source: Path) -> bool:
         if self._processing or self._close_requested:
             return False
         try:
-            source = Path(filename).expanduser()
-            validate_native_source(source)
+            folder = source.is_dir()
+            if not folder:
+                validate_native_source(source)
         except (ValueError, OSError) as exc:
             self.status_var.set(str(exc))
             self._set_status_tone("error")
@@ -454,22 +488,83 @@ class GifCreatorApp:
         self.output_entry.xview_moveto(1)
         self.status_var.set(f"已选择 {source.name}，点击开始生成 GIF。")
         self._set_status_tone("accent")
-        self.log_message(f"输入文件：{source}")
+        self.log_message(f"输入{'文件夹' if folder else '文件'}：{source}")
         self.log_message(f"输出文件夹：{self.output_dir_var.get()}")
+        self._check_registration_for_input(folder)
         return True
+
+    def _set_registration_issue(self, issue: VRLabRegistrationError | None) -> None:
+        previous = self._registration_issue
+        self._registration_issue = issue
+        if issue is None:
+            self.registration_notice.grid_remove()
+            self.source_hint.grid()
+            return
+        self.source_hint.grid_remove()
+        self.registration_notice.grid(row=1, column=0, columnspan=3, sticky="ew",
+                                      padx=self.appearance.px(12), pady=0)
+        self.status_var.set("VRLab COM 注册不可用：查看注册指引，或改用 PNG 文件夹。")
+        self._set_status_tone("error")
+        if str(previous) != str(issue):
+            self.log_message(f"VRLab 注册检查失败：{issue}")
+
+    def _check_registration_for_input(self, png_folder: bool, *, show_dialog: bool = False) -> bool:
+        if png_folder or sys.platform != "win32":
+            self._set_registration_issue(None)
+            return True
+        try:
+            check_native_registration()
+        except VRLabRegistrationError as exc:
+            self._set_registration_issue(exc)
+            if show_dialog:
+                self.select_page("settings")
+                self.show_registration_guide()
+            return False
+        self._set_registration_issue(None)
+        return True
+
+    def show_registration_guide(self) -> None:
+        if not self._close_requested:
+            messagebox.showwarning("VRLab 自动化注册指引",
+                                   str(self._registration_issue or VRLabRegistrationError()), parent=self.root)
 
     def _layout_drop_area(self, event: tk.Event) -> None:
         p = self.appearance.px
         w, h, r = event.width - 1, event.height - 1, p(10)
         self.drop_surface.coords(self._drop_border, 1, r, 1, 1, r, 1, w-r, 1,
                                  w, 1, w, r, w, h-r, w, h, w-r, h, r, h, 1, h, 1, h-r)
-        self.drop_surface.coords(self._drop_title, p(12), p(15))
-        button_width = self.input_browse_button.winfo_reqwidth()
-        self.drop_surface.coords(self._drop_button_window, w-p(10), h/2)
-        self.drop_surface.coords(self._drop_entry_window, p(10), p(42))
-        self.drop_surface.itemconfigure(self._drop_entry_window, width=max(1, w-button_width-p(32)))
-        self.drop_surface.itemconfigure(self._drop_title, width=max(1, w-button_width-p(34)))
+        # Reserve the same inset at rest and while dragging: the highlight
+        # must surround the form without touching its labels or buttons.
+        padding = p(12)
         self._paint_drop_area()
+        self.drop_surface.itemconfigure(self._drop_title, width=max(1, w-2*padding))
+        title_bounds = self.drop_surface.bbox(self._drop_title)
+        title_height = title_bounds[3]-title_bounds[1]
+        self.drop_surface.coords(self._drop_title, padding, padding+title_height/2)
+        row_height = max(widget.winfo_reqheight() for widget in
+                         (self.input_entry, self.input_browse_button, self.input_folder_button,
+                          self.output_entry, self.output_browse_button))
+        input_y = padding + title_height + p(6) + row_height/2
+        output_y = input_y + row_height + p(6)
+        needed_height = math.ceil(output_y + row_height/2 + padding)
+        if int(self.drop_surface.cget("height")) != needed_height:
+            self.drop_surface.configure(height=needed_height)
+        label_width = max(self.drop_surface.bbox(label)[2]-self.drop_surface.bbox(label)[0]
+                          for label in (self._input_label, self._output_label))
+        path_left = padding + label_width + p(12)
+        folder_width = self.input_folder_button.winfo_reqwidth()
+        button_width = self.input_browse_button.winfo_reqwidth() + folder_width + p(6)
+        right = w-padding
+        path_width = max(1, right-path_left-button_width-p(10))
+        self.drop_surface.coords(self._input_label, padding, input_y)
+        self.drop_surface.coords(self._output_label, padding, output_y)
+        self.drop_surface.coords(self._drop_folder_window, right, input_y)
+        self.drop_surface.coords(self._drop_button_window, right-p(6)-folder_width, input_y)
+        for window, center in ((self._drop_entry_window, input_y), (self._drop_output_window, output_y)):
+            self.drop_surface.coords(window, path_left, center)
+            self.drop_surface.itemconfigure(window, width=path_width)
+        self.drop_surface.coords(self._drop_output_button_window, right, output_y)
+        self.drop_surface.itemconfigure(self._drop_output_button_window, width=button_width)
 
     def _paint_drop_area(self) -> None:
         c = self.appearance.colors
@@ -479,11 +574,13 @@ class GifCreatorApp:
         # Keep the drop target on that same surface, including while dragging,
         # so their rectangular widget bounds never appear at the corners.
         self.drop_surface.itemconfigure(self._drop_border, fill=c.surface,
-                                        outline=c.accent if active else c.entry_border,
+                                        outline=c.accent if active else c.surface,
                                         width=self.appearance.px(2 if active else 1))
-        text = "正在生成，请稍候…" if self._processing else "松开以选择此文件" if active else "＋ 拖入 .OptisVR / .speos360 文件"
+        text = "正在生成，请稍候…" if self._processing else "松开以选择文件或文件夹" if active else "＋ 拖入视角文件 / PNG 文件夹"
         self.drop_surface.itemconfigure(self._drop_title, text=text,
-                                        fill=c.disabled_text if self._processing else c.accent)
+                                        fill=c.disabled_text if self._processing else c.accent if active else c.secondary)
+        for label in (self._input_label, self._output_label):
+            self.drop_surface.itemconfigure(label, fill=c.text)
 
     def _configure_drop_targets(self) -> None:
         for widget in (self.root, self.drop_surface, self.input_entry):
@@ -499,8 +596,11 @@ class GifCreatorApp:
         if data and data != "%D":
             try:
                 paths = self.root.tk.splitlist(data)
-                acceptable = acceptable and len(paths) == 1 and Path(paths[0]).suffix.lower() in NATIVE_EXTENSIONS
-            except tk.TclError:
+                acceptable = acceptable and len(paths) == 1 and bool(paths[0].strip())
+                if acceptable:
+                    source = Path(paths[0]).expanduser()
+                    acceptable = source.is_dir() or (source.is_file() and source.suffix.lower() in NATIVE_EXTENSIONS)
+            except (tk.TclError, OSError):
                 acceptable = False
         self._drop_hover = acceptable
         self._paint_drop_area()
@@ -516,8 +616,8 @@ class GifCreatorApp:
             return REFUSE_DROP
         try:
             paths = self.root.tk.splitlist(event.data)
-            if len(paths) != 1:
-                raise ValueError("请一次拖入一个 .OptisVR 或 .speos360 视角文件。")
+            if len(paths) != 1 or not paths[0].strip():
+                raise ValueError("请一次拖入一个视角文件或 PNG 文件夹。")
         except (tk.TclError, ValueError) as exc:
             self.status_var.set(str(exc) if isinstance(exc, ValueError) else "无法识别拖入的文件路径，请重新拖入。")
             self._set_status_tone("error")
@@ -652,13 +752,17 @@ class GifCreatorApp:
             input_text = self.input_file_var.get().strip()
             output_text = self.output_dir_var.get().strip()
             if not input_text:
-                raise ValueError("请选择或拖入一个 VRLab 视角文件。")
+                raise ValueError("请选择或拖入视角文件 / PNG 文件夹。")
             if not output_text:
                 self._sync_default_output()
                 output_text = self.output_dir_var.get().strip()
             input_file = Path(input_text).expanduser()
             output_dir = Path(output_text).expanduser()
-            validate_native_source(input_file)
+            png_folder = input_file.is_dir()
+            if not png_folder:
+                validate_native_source(input_file)
+            if not output_text:
+                raise ValueError("请选择 GIF 输出文件夹。")
             if output_dir.exists() and not output_dir.is_dir():
                 raise ValueError(f"输出路径已经存在，但不是文件夹：\n{output_dir}")
             delay_ms = self._parse_integer(self.delay_var.get(), "每帧延时", 10, 655350)
@@ -673,22 +777,25 @@ class GifCreatorApp:
             messagebox.showerror("输入错误", str(exc), parent=self.root)
             return
 
+        if not self._check_registration_for_input(png_folder, show_dialog=True):
+            return
+
         self.log_message("--- 开始生成 GIF ---", clear=True)
         self._completed_gifs = ()
         self._active_job = "gif"
         self._job_source = input_file
-        self.log_message(f"输入文件：{input_file}")
+        self.log_message(f"输入{'文件夹' if png_folder else '文件'}：{input_file}")
         self.log_message(f"输出文件夹：{output_dir}")
         self.progress_var.set(0)
         self.progress_bar.configure(maximum=1)
-        self.status_var.set("正在启动 Ansys VRLab…")
+        self.status_var.set("正在读取 PNG 图片…" if png_folder else "正在启动 Ansys VRLab…")
         self._set_status_tone("accent")
         self._cancel_event = threading.Event()
         self._pending_outcome = None
         self._set_processing(True)
         self._worker = threading.Thread(
             target=self._run_worker,
-            args=(input_file, output_dir, delay_ms, font_size, filters),
+            args=(input_file, output_dir, delay_ms, font_size, filters, png_folder),
             name="VRLab2GIF-converter",
             daemon=False,
         )
@@ -702,10 +809,12 @@ class GifCreatorApp:
             self.log_message(f"无法启动处理线程：{exc}")
             messagebox.showerror("启动失败", str(exc), parent=self.root)
 
-    def _run_worker(self, input_file: Path, output_dir: Path, delay_ms: int, font_size: int, filters: AngleFilters) -> None:
+    def _run_worker(self, input_file: Path, output_dir: Path, delay_ms: int, font_size: int,
+                    filters: AngleFilters, png_folder: bool = False) -> None:
         # This function and its callbacks must never access Tk widgets or variables.
         try:
-            result = create_native_gifs(
+            convert = create_gifs if png_folder else create_native_gifs
+            result = convert(
                 input_file,
                 output_dir,
                 delay_ms=delay_ms,
@@ -817,6 +926,11 @@ class GifCreatorApp:
             self._set_status_tone("error")
             self.log_message(f"生成失败 [{type(payload).__name__}]：{payload}")
             if not self._close_requested:
+                if isinstance(payload, VRLabRegistrationError):
+                    self._set_registration_issue(payload)
+                    self.select_page("settings")
+                    self.show_registration_guide()
+                    return
                 self.select_page("logs")
                 self.scroll_area.reveal(self.logs_card)
                 messagebox.showerror("生成失败", f"{payload}\n\n请查看运行日志；已生成的 GIF 保留在输出文件夹中。", parent=self.root)
@@ -863,9 +977,22 @@ def main(*, smoke_test: bool = False) -> int:
                                           "CF_HDROP", (str(source),))
                     if action != COPY or Path(app.input_file_var.get()) != source or app._processing:
                         raise RuntimeError("文件拖放自检失败。")
-                    gif_path = Path(temporary) / "collection_all_views.gif"
-                    with Image.new("RGB", (64, 32), "black") as image:
-                        image.save(gif_path, format="GIF")
+                    png_folder = Path(temporary) / "PNG 导出 {视角}.v1"
+                    png_folder.mkdir()
+                    for index, color in enumerate(("red", "blue")):
+                        with Image.new("RGB", (96, 64), color) as image:
+                            image.save(png_folder / f"test_Image_{index}°_0°.png")
+                    root.tk.call("tkdnd::olednd::HandleDragEnter", target,
+                                 ("CF_HDROP",), ("copy",), (), 0, 0, (0,), (str(png_folder),))
+                    action = root.tk.call("tkdnd::olednd::HandleDrop", target, (), 0, 0,
+                                          "CF_HDROP", (str(png_folder),))
+                    if action != COPY or Path(app.input_file_var.get()) != png_folder or app._processing:
+                        raise RuntimeError("PNG 文件夹拖放自检失败。")
+                    gifs = create_gifs(png_folder, Path(app.output_dir_var.get()))
+                    gif_path = gifs.output_paths[-1]
+                    with Image.open(gif_path) as image:
+                        if image.n_frames != 2 or len(list(png_folder.glob("*.png"))) != 2:
+                            raise RuntimeError("PNG 文件夹转换自检失败。")
                     ppt = export_gifs_to_pptx((gif_path,), Path(temporary) / "report.pptx")
                     from zipfile import ZipFile
                     with ZipFile(ppt.output_path) as archive:
@@ -873,7 +1000,7 @@ def main(*, smoke_test: bool = False) -> int:
                             raise RuntimeError("PPT 导出自检失败。")
         finally:
             app.on_close()
-        print("VRLab2GIF GUI, native file-drop and PPT export smoke test passed.")
+        print("VRLab2GIF GUI, native/PNG-folder input, GIF conversion and PPT export smoke test passed.")
         return 0
     root.mainloop()
     return 0

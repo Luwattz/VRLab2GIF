@@ -171,7 +171,7 @@ class AppleAppearance:
         names = (".", "TFrame", "Window.TFrame", "TLabel", "Window.TLabel", "Title.TLabel",
                  "Subtitle.TLabel", "Section.TLabel", "Hint.TLabel", "Footer.TLabel",
                  "Apple.TCheckbutton", "Apple.TRadiobutton",
-                 "Primary.TButton", "Secondary.TButton", "Disclosure.TButton", "Apple.TEntry",
+                 "Primary.TButton", "Secondary.TButton", "Disclosure.TButton", "Inline.TButton", "Apple.TEntry",
                  "Apple.Vertical.TScrollbar", "Page.Apple.Vertical.TScrollbar")
         return {name: (self.style.configure(name) or {}, self.style.map(name)) for name in names}
 
@@ -352,9 +352,11 @@ class AppleAppearance:
             ("Primary", c.primary, c.primary_hover, c.primary_pressed, "#ffffff"),
             ("Secondary", c.button, c.button_hover, c.button_pressed, c.text),
             ("Disclosure", c.surface, c.button, c.button_hover, c.accent if self.mode == "light" else c.secondary),
+            ("Inline", c.surface, c.button, c.button_hover, c.accent),
         ):
+            compact = name == "Inline"
             images = [self.rounded_image(
-                self.px(160), self.px(64), color, radius=self.px(10), focused=focus,
+                self.px(160), self.px(64), color, radius=self.px(7 if compact else 10), focused=focus,
                 outline=c.entry_border if name == "Secondary" and self.mode == "light" and color != c.disabled_surface else None,
             ) for color, focus in ((normal, False), (hover, False), (pressed, False), (c.disabled_surface, False), (normal, True))]
             element = f"Apple.{name}.button"
@@ -362,7 +364,8 @@ class AppleAppearance:
                 element, "image", images[0],
                 ("disabled", images[3]), ("pressed", images[2]),
                 ("active", images[1]), ("focus", images[4]),
-                border=self.px(13), width=self.px(36), height=self.px(36), padding=0, sticky="nsew",
+                border=self.px(8 if compact else 13), width=self.px(24 if compact else 36),
+                height=self.px(22 if compact else 36), padding=0, sticky="nsew",
             )
             style_name = f"{name}.TButton"
             self.style.layout(style_name, [(element, {"sticky": "nsew", "children": [
@@ -372,7 +375,9 @@ class AppleAppearance:
             ]})])
             self.style.configure(
                 style_name, foreground=foreground, background=c.surface,
-                padding=(self.px(12), self.px(7)), anchor="center", borderwidth=0, width=0,
+                padding=(self.px(6), self.px(2)) if compact else (self.px(12), self.px(7)),
+                font=self.hint_font if compact else "TkDefaultFont",
+                anchor="center", borderwidth=0, width=0,
             )
             self.style.map(style_name, foreground=[("disabled", c.disabled_text)])
 

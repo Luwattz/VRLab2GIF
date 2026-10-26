@@ -27,6 +27,7 @@ def main() -> None:
     parser.add_argument("--height", type=int)
     parser.add_argument("--scale", type=float)
     parser.add_argument("--theme", choices=("dark", "light"), default="dark")
+    parser.add_argument("--drag-hover", action="store_true", help="显示文件拖入时的高亮边框")
     parser.add_argument("--ppt-gif", type=Path, help="显示 PPT 设置窗口，以指定 GIF 作为已生成结果")
     pages = parser.add_mutually_exclusive_group()
     pages.add_argument("--page", choices=("settings", "filters", "logs"), default="settings")
@@ -42,6 +43,9 @@ def main() -> None:
     app.navigation.motion_enabled = False
     app.set_theme(args.theme)
     app.select_page(args.page)
+    if args.drag_hover:
+        app._drop_hover = True
+        app._paint_drop_area()
     if args.width and args.height:
         root.geometry(f"{args.width}x{args.height}+40+40")
     else:
@@ -66,6 +70,7 @@ def main() -> None:
                 "scale": app.appearance.scale,
                 "theme": app.appearance.mode,
                 "page": app.page_var.get(),
+                "drag_hover": app._drop_hover,
                 "ppt_dialog": dialog is not None,
                 "page_requested": app.scroll_area.content.winfo_reqheight(),
                 "page_viewport": app.scroll_area.canvas.winfo_height(),

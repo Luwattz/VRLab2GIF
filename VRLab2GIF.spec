@@ -3,6 +3,12 @@ from pathlib import Path
 from PyInstaller.utils.hooks import collect_data_files
 
 project = Path(SPECPATH)
+# COLLECT replaces its output directory. On Windows the bundle name also
+# matches the source package case-insensitively, so reject overlapping paths.
+folder_destination = (Path(DISTPATH) / "VRLab2GIF").resolve()
+source_package = (project / "vrlab2gif").resolve()
+if folder_destination.is_relative_to(source_package) or source_package.is_relative_to(folder_destination):
+    raise ValueError("Folder output overlaps the source tree; choose a separate --distpath / OutputDirectory.")
 # Arial is mandatory so release annotations do not depend on system fonts.
 font = project / "fonts" / "arial.ttf"
 if not font.is_file():
@@ -27,12 +33,7 @@ a = Analysis(
     optimize=0,
 )
 pyz = PYZ(a.pure)
-exe = EXE(
-    pyz,
-    a.scripts,
-    a.binaries,
-    a.datas,
-    [],
+exe_options = dict(
     name="VRLab2GIF",
     icon=str(project / "assets" / "vrlab2gif.ico"),
     debug=False,
@@ -42,4 +43,23 @@ exe = EXE(
     console=False,
     disable_windowed_traceback=False,
     version=str(project / "windows-version.txt"),
+)
+
+# Both distributions use exactly the same analysis, code, resources and icon.
+exe = EXE(pyz, a.scripts, a.binaries, a.datas, [], **exe_options)
+folder_exe = EXE(
+    pyz,
+    a.scripts,
+    [],
+    exclude_binaries=True,
+    contents_directory="_internal",
+    **exe_options,
+)
+folder = COLLECT(
+    folder_exe,
+    a.binaries,
+    a.datas,
+    strip=False,
+    upx=False,
+    name="VRLab2GIF",
 )

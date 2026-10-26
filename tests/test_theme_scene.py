@@ -178,6 +178,9 @@ class ThemeSceneTests(unittest.TestCase):
         from vrlab2gif.theme_scene import capture_client
 
         self.root.attributes("-topmost", True)
+        # A real theme-button click is made in an active window. Normalize
+        # activation before comparing DWM's active border and shadow pixels.
+        self.root.focus_force()
         self.root.update()
         hwnd = int(self.root.wm_frame(), 0)
         bounds = win32gui.GetWindowRect(hwnd)
