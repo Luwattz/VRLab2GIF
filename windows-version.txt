@@ -1,7 +1,7 @@
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(1, 2, 4, 0),
-    prodvers=(1, 2, 4, 0),
+    filevers=(1, 2, 5, 0),
+    prodvers=(1, 2, 5, 0),
     mask=0x3f,
     flags=0x0,
     OS=0x40004,
@@ -14,12 +14,12 @@ VSVersionInfo(
       StringTable('080404b0', [
         StringStruct('CompanyName', 'Intelligent Efficiency Team'),
         StringStruct('FileDescription', 'Virtual Reality Lab 视角合成器'),
-        StringStruct('FileVersion', '1.2.4.0'),
+        StringStruct('FileVersion', '1.2.5.0'),
         StringStruct('InternalName', 'VRLab2GIF'),
         StringStruct('LegalCopyright', 'Copyright © Intelligent Efficiency Team'),
         StringStruct('OriginalFilename', 'VRLab2GIF.exe'),
         StringStruct('ProductName', 'VRLab2GIF 视角合成器'),
-        StringStruct('ProductVersion', '1.2.4')
+        StringStruct('ProductVersion', '1.2.5')
       ])
     ]),
     VarFileInfo([VarStruct('Translation', [2052, 1200])])

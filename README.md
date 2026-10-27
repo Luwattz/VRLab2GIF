@@ -1,5 +1,7 @@
 # Virtual Reality Lab 视角合成器
 
+**1.2.5**：项目采用 MIT 许可证，单文件与文件夹分发包均附带 `LICENSE`。整合最新 PNG 文件夹导入、VRLab COM 注册指引、界面布局及日志滚动修复，并同时提供两种 Windows x64 分发包。
+
 **1.2.4**：主题切换改为 Windows 整体画面合成，解决日志标题、按钮栏等控件分批重绘造成的横纹。大卡片使用缓存圆角切片，减少首次切页停顿；两个滑块按 60 Hz 帧预算调度，动画期间临时提高 Windows 定时精度，结束即释放。
 
 Dark / Light 切换时，主体作为完整画面统一渐变，标题栏与顶部选择器同步配色。支持途中反向选择，默认仍为 Dark；本机 150% 缩放下动画帧间隔通常约 17 ms，性能及限制详见 [主题过渡说明](docs/theme-transition.md)。
@@ -20,10 +22,10 @@ VRLab 2024 R1 的 COM 导出文件名使用索引，与手动菜单导出的角�
 
 正式发布页位于 [GitHub Releases](https://github.com/Luwattz/VRLab2GIF/releases/latest)。本地构建默认同时生成单文件版和文件夹版，两版功能一致，均无需安装 Python，并附带 Arial 与原生拖放组件。
 
-| 版本 | 本地运行入口（以 `dist/1.2.4` 为例） | 分发包 |
+| 版本 | 本地运行入口（以 `dist/1.2.5` 为例） | 分发包 |
 | --- | --- | --- |
-| 单文件版 | `dist/1.2.4/VRLab2GIF.exe`，可单独复制运行 | `VRLab2GIF-Windows-x64.zip`，附说明文档 |
-| 文件夹版 | `dist/1.2.4/VRLab2GIF/VRLab2GIF.exe`，保留整个目录及 `_internal` | `VRLab2GIF-Windows-x64-folder.zip`，完整解压后运行 |
+| 单文件版 | `dist/1.2.5/VRLab2GIF.exe`，可单独复制运行 | `VRLab2GIF-Windows-x64.zip`，附说明文档 |
+| 文件夹版 | `dist/1.2.5/VRLab2GIF/VRLab2GIF.exe`，保留整个目录及 `_internal` | `VRLab2GIF-Windows-x64-folder.zip`，完整解压后运行 |
 
 文件夹版可用于单文件版启动较慢的终端。单文件版启动时会先将内置依赖展开到临时目录，文件夹版直接使用随包附带的依赖，参见 [PyInstaller 官方说明](https://pyinstaller.org/en/v6.16.0/operating-mode.html#how-the-one-file-program-works)。
 
@@ -88,7 +90,7 @@ python main.py
 构建：
 
 ```powershell
-.\build.ps1 -OutputDirectory 'dist\1.2.4'
+.\build.ps1 -OutputDirectory 'dist\1.2.5'
 ```
 
 每次构建都会同时生成单文件 EXE、文件夹版和两种 ZIP，不需要额外切换打包参数。两版复用同一份依赖分析、代码和资源；各自从发布目录运行自检，验证字体、文件及文件夹拖放、PNG→GIF 和 PPT 导出后再打包，并分别附带说明文档与许可。直接构建 `VRLab2GIF.spec` 也会同时输出两种程序形态。
@@ -115,6 +117,12 @@ python tools/verify_native_conversion.py samples/ansys-vrlab/test_07_VRLab_expor
 ```
 
 界面截图：`python tools/preview_ui.py --theme dark --output docs/dark-mode.png`，将主题改为 light 可截取浅色界面；使用 `--page filters` / `--page logs` 选择辅助页面。
+
+## 许可证
+
+本项目采用 [MIT License](LICENSE)，Copyright (c) 2026 Intelligent Efficiency Team。源码、单文件 EXE 内及两种分发包均包含该许可证。
+
+第三方组件、字体及 Ansys 样例保留各自原有许可，不属于本项目 MIT 授权范围。Arial 的来源及权利说明见 [字体资源说明](docs/fonts.md)，Ansys 样例许可见 [LICENSE-ANSYS.txt](samples/ansys-vrlab/LICENSE-ANSYS.txt)。
 
 原生拖放组件采用 [tkinterdnd2](https://github.com/Eliav2/tkinterdnd2)，其项目许可为 MIT；组件与所含 TkDnD 的原始许可见分发包 `docs/third-party/`。
 

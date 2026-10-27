@@ -13,7 +13,8 @@ if folder_destination.is_relative_to(source_package) or source_package.is_relati
 font = project / "fonts" / "arial.ttf"
 if not font.is_file():
     raise FileNotFoundError("Missing bundled Arial: fonts/arial.ttf")
-datas = [(str(project / "assets" / "vrlab2gif-logo.png"), "assets"),
+datas = [(str(project / "LICENSE"), "."),
+         (str(project / "assets" / "vrlab2gif-logo.png"), "assets"),
          (str(font), "fonts")]
 datas += collect_data_files("tkinterdnd2")
 datas += [(str(license), "third-party") for license in (project / "docs" / "third-party").glob("*.txt")]

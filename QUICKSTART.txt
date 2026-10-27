@@ -1,6 +1,9 @@
-Virtual Reality Lab 视角合成器 1.2.4
+Virtual Reality Lab 视角合成器 1.2.5
 Copyright © Intelligent Efficiency Team
 开发公司：Intelligent Efficiency Team
+
+项目许可：MIT，完整条款见随包 LICENSE。
+第三方组件、字体及 Ansys 样例保留各自原有许可，不属于本项目 MIT 授权范围。
 
 分发方式：每次打包同时提供以下两版，功能一致，均无需安装 Python。
 单文件版：直接运行 VRLab2GIF.exe，可单独复制到其他电脑；VRLab2GIF-Windows-x64.zip 另附说明文档。

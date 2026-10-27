@@ -80,6 +80,7 @@ try {
     }
     Copy-Item -LiteralPath "README.md" -Destination (Join-Path $releaseRoot "README.md") -Force
     Copy-Item -LiteralPath "QUICKSTART.txt" -Destination (Join-Path $releaseRoot "QUICKSTART.txt") -Force
+    Copy-Item -LiteralPath "LICENSE" -Destination (Join-Path $releaseRoot "LICENSE") -Force
     $releaseDocs = Join-Path $releaseRoot "docs"
     New-Item -ItemType Directory -Path $releaseDocs -Force | Out-Null
     Copy-Item -LiteralPath "docs\apple-design.png" -Destination (Join-Path $releaseDocs "apple-design.png") -Force
@@ -95,9 +96,9 @@ try {
     $releaseAssets = Join-Path $releaseRoot "assets"
     New-Item -ItemType Directory -Path $releaseAssets -Force | Out-Null
     Copy-Item -LiteralPath "assets\vrlab2gif-logo.png", "assets\vrlab2gif.ico", "assets\LOGO.md" -Destination $releaseAssets -Force
-    $releaseFiles = @($executable, (Join-Path $releaseRoot "README.md"), (Join-Path $releaseRoot "QUICKSTART.txt"), $releaseDocs, $releaseAssets)
+    $releaseFiles = @($executable, (Join-Path $releaseRoot "README.md"), (Join-Path $releaseRoot "QUICKSTART.txt"), (Join-Path $releaseRoot "LICENSE"), $releaseDocs, $releaseAssets)
     Compress-Archive -LiteralPath $releaseFiles -DestinationPath (Join-Path $releaseRoot "VRLab2GIF-Windows-x64.zip") -Force
-    Copy-Item -LiteralPath "README.md", "QUICKSTART.txt" -Destination $folderRoot -Force
+    Copy-Item -LiteralPath "README.md", "QUICKSTART.txt", "LICENSE" -Destination $folderRoot -Force
     Copy-Item -LiteralPath $releaseDocs, $releaseAssets -Destination $folderRoot -Recurse -Force
     Compress-Archive -LiteralPath $folderRoot -DestinationPath (Join-Path $releaseRoot "VRLab2GIF-Windows-x64-folder.zip") -Force
     Write-Host "Single-file build: $executable"
