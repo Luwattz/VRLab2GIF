@@ -1,0 +1,5 @@
+# Preserve upstream license bytes, including the hashes recorded for Tcl/Tk.
+# Windows core.autocrlf must not rewrite these vendored originals.
+LICENSE -text
+docs/third-party/*.txt -text
+fonts/*.ttf binary

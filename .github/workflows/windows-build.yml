@@ -1,0 +1,32 @@
+name: Windows build
+
+on:
+  push:
+    branches: [main, 'codex/**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: x64
+      - name: Test and build both distributions
+        shell: pwsh
+        run: ./build.ps1 -Python (Get-Command python).Source -OutputDirectory dist/1.2.6
+      - name: Upload verified distributions and notices
+        uses: actions/upload-artifact@v4
+        with:
+          name: VRLab2GIF-1.2.6-Windows-x64
+          path: |
+            dist/1.2.6/VRLab2GIF.exe
+            dist/1.2.6/*.zip
+            dist/1.2.6/SHA256SUMS.txt
+          if-no-files-found: error

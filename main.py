@@ -9,7 +9,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Virtual Reality Lab 视角合成器")
     parser.add_argument("--smoke-test", action="store_true", help="创建并关闭界面，验证应用可启动。")
     parser.add_argument("--native-export", type=str, help=argparse.SUPPRESS)
+    parser.add_argument("--export-licenses", metavar="DIRECTORY", help="导出随包版权声明、许可和版本清单到空目录。")
     args = parser.parse_args(argv)
+    if args.export_licenses:
+        from pathlib import Path
+        from vrlab2gif.licensing import export_licenses
+        export_licenses(Path(args.export_licenses))
+        return 0
     if args.native_export:
         from pathlib import Path
         from vrlab2gif.native import export_helper
@@ -19,8 +25,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         from vrlab2gif.core import bundled_font_path, load_font
         font = load_font(24)
         if (Path(getattr(font, "path", "")).resolve() != bundled_font_path().resolve()
-                or font.getname()[0] != "Arial"):
-            raise RuntimeError("内嵌 Arial 字体自检失败。请检查 fonts/arial.ttf 并重新打包。")
+                or font.getname()[0] != "Liberation Sans"):
+            raise RuntimeError("内嵌 Liberation Sans 字体自检失败。请检查 fonts/LiberationSans-Regular.ttf 并重新打包。")
     from vrlab2gif.app import main as run_app
     return run_app(smoke_test=args.smoke_test)
 

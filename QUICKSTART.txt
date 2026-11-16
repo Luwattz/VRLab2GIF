@@ -1,15 +1,18 @@
-Virtual Reality Lab 视角合成器 1.2.5
+Virtual Reality Lab 视角合成器 1.2.6
 Copyright © Intelligent Efficiency Team
 开发公司：Intelligent Efficiency Team
 
 项目许可：MIT，完整条款见随包 LICENSE。
+第三方总览见 THIRD_PARTY_NOTICES.md，完整许可与构建依赖版本见 docs/third-party/。
+单独使用 EXE 时，可运行 VRLab2GIF.exe --export-licenses <新的或空的目录> 导出完整许可，无需打开界面。
+1.2.6 起内嵌 Liberation Sans Regular（SIL OFL 1.1），允许随软件分发；已移除 Arial 文件。
 第三方组件、字体及 Ansys 样例保留各自原有许可，不属于本项目 MIT 授权范围。
 
 分发方式：每次打包同时提供以下两版，功能一致，均无需安装 Python。
 单文件版：直接运行 VRLab2GIF.exe，可单独复制到其他电脑；VRLab2GIF-Windows-x64.zip 另附说明文档。
 文件夹版：完整解压 VRLab2GIF-Windows-x64-folder.zip，运行 VRLab2GIF 文件夹中的 VRLab2GIF.exe。
 请保留文件夹中的 _internal 及其他随包文件，复制或分发时复制整个 VRLab2GIF 文件夹。
-单文件版启动较慢时可使用文件夹版。两版均附带 Arial 字体、拖放组件，并单独通过构建自检。
+单文件版启动较慢时可使用文件夹版。两版均附带 Liberation Sans 字体、拖放组件，并单独通过构建自检。
 
 更新：PPT 首页固定展示全角度合集，其后按原有顺序展示各角度分组。
 
@@ -64,7 +67,7 @@ PNG 文件夹命名与排序：
 
 若导出名称带真实 H/V 角度，GIF 仍显示角度、支持筛选与分组。
 若名称仅有视角索引，先尝试从源文件恢复真实角度；无法安全恢复时日志说明原因，才生成不带角度的 collection_all_views.gif，需清空筛选。
-Arial 常规体和原生拖放组件均内嵌在 EXE 中，无需额外安装。
+Liberation Sans 常规体和原生拖放组件均内嵌在 EXE 中，无需额外安装。
 默认角度文字为 24 px 白字黑描边，可调整字号；界面自身使用系统字体。
 
 默认 Dark，右上角改为 ACT-WBEX-Updater 同款 Dark / Light 分段按钮。

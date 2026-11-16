@@ -21,7 +21,7 @@
 | 页脚 | 左下角默认 Intelligent Efficiency Team，可修改；微软雅黑 11 pt，RGB 118 / 106 / 96 |
 | 页码 | 母版右下角原生 slidenum 自动字段，插入、删除或重排页面时由 PowerPoint 更新 |
 
-PPT 使用白底参考样式，独立于程序 Dark/Light 外观。GIF 画面及其已有的 Arial 角度标记不会改成微软雅黑；微软雅黑用于 PPT 原生文字。
+PPT 使用白底参考样式，独立于程序 Dark/Light 外观。GIF 画面及其已有的 Liberation Sans 角度标记不会改成微软雅黑；微软雅黑用于 PPT 原生文字。
 
 ## 文件与播放
 
