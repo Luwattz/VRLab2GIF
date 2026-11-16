@@ -138,14 +138,16 @@ def collect(output: Path, allow_non_windows: bool = False) -> Collector:
     tcl_library = Path(interpreter.eval("info library"))
     result.runtime_license("Tcl", tcl_version, [tcl_library, Path(sys.base_prefix) / "tcl" / f"tcl{tkinter.TclVersion}"], strict)
     try:
-        interpreter.eval("package require Tk")
-        interpreter.eval("wm withdraw .")
+        # Python's Windows runtime initializes Tk through _tkinter; a plain
+        # Tcl 'package require Tk' cannot always locate its bundled DLL/index.
+        interpreter.loadtk()
+        interpreter.withdraw()
         tk_version = interpreter.eval("package provide Tk")
         tk_library = Path(interpreter.eval("set tk_library"))
         result.runtime_license("Tk", tk_version, [tk_library, Path(sys.base_prefix) / "tcl" / f"tk{tkinter.TkVersion}"], strict)
     except tkinter.TclError as exc:
         if strict:
-            raise RuntimeError("Cannot determine the installed Tk runtime and license") from exc
+            raise RuntimeError(f"Cannot determine the installed Tk runtime and license: {exc}") from exc
         result.unavailable.append("Tk runtime license: no graphical display available")
     finally:
         try:
