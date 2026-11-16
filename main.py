@@ -19,8 +19,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         from vrlab2gif.core import bundled_font_path, load_font
         font = load_font(24)
         if (Path(getattr(font, "path", "")).resolve() != bundled_font_path().resolve()
-                or font.getname()[0] != "Arial"):
-            raise RuntimeError("内嵌 Arial 字体自检失败。请检查 fonts/arial.ttf 并重新打包。")
+                or font.getname()[0] != "Liberation Sans"):
+            raise RuntimeError("内嵌 Liberation Sans 字体自检失败。请检查 fonts/LiberationSans-Regular.ttf 并重新打包。")
     from vrlab2gif.app import main as run_app
     return run_app(smoke_test=args.smoke_test)
 

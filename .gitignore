@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 build/
 dist/
+.license-bundle/
 .pytest_cache/
 .vrlab2gif-*.tmp
 .vrlab2gif-ppt-*.tmp

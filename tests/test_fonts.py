@@ -12,18 +12,27 @@ from vrlab2gif.core import bundled_font_path, create_gifs, load_font
 
 
 class BundledFontTests(unittest.TestCase):
-    def test_source_uses_bundled_arial_at_requested_size(self):
+    def test_source_uses_bundled_liberation_sans_at_requested_size(self):
         font = load_font(37)
         self.assertEqual(Path(font.path).resolve(), bundled_font_path().resolve())
-        self.assertEqual(font.getname(), ("Arial", "Regular"))
+        self.assertEqual(font.getname(), ("Liberation Sans", "Regular"))
         self.assertEqual(font.size, 37)
+
+    def test_annotation_characters_have_real_glyphs(self):
+        font = load_font(24)
+        missing = font.getmask("\U0010ffff")
+        missing_glyph = (missing.size, bytes(missing))
+        for character in "HV0123456789+-−°:.":
+            with self.subTest(character=character):
+                glyph = font.getmask(character)
+                self.assertNotEqual((glyph.size, bytes(glyph)), missing_glyph)
 
     def test_frozen_bundle_renders_angle_gif_without_accessing_system_fonts(self):
         source_font = bundled_font_path()
         with tempfile.TemporaryDirectory(prefix=".test-fonts-", dir=Path.cwd()) as temporary:
             root = Path(temporary)
             (root / "fonts").mkdir()
-            bundled = root / "fonts" / "arial.ttf"
+            bundled = root / "fonts" / "LiberationSans-Regular.ttf"
             shutil.copyfile(source_font, bundled)
             input_dir = root / "input"
             input_dir.mkdir()

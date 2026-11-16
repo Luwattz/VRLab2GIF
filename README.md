@@ -1,5 +1,7 @@
 # Virtual Reality Lab 视角合成器
 
+**1.2.6**：内嵌字体改为 Liberation Sans Regular（SIL OFL 1.1），移除 Arial 字体文件；两种分发包及 EXE 内补齐第三方版权声明、完整许可和构建依赖版本清单。
+
 **1.2.5**：项目采用 MIT 许可证，单文件与文件夹分发包均附带 `LICENSE`。整合最新 PNG 文件夹导入、VRLab COM 注册指引、界面布局及日志滚动修复，并同时提供两种 Windows x64 分发包。
 
 **1.2.4**：主题切换改为 Windows 整体画面合成，解决日志标题、按钮栏等控件分批重绘造成的横纹。大卡片使用缓存圆角切片，减少首次切页停顿；两个滑块按 60 Hz 帧预算调度，动画期间临时提高 Windows 定时精度，结束即释放。
@@ -20,12 +22,12 @@ VRLab 2024 R1 的 COM 导出文件名使用索引，与手动菜单导出的角�
 
 ## 使用
 
-正式发布页位于 [GitHub Releases](https://github.com/Luwattz/VRLab2GIF/releases/latest)。本地构建默认同时生成单文件版和文件夹版，两版功能一致，均无需安装 Python，并附带 Arial 与原生拖放组件。
+正式发布页位于 [GitHub Releases](https://github.com/Luwattz/VRLab2GIF/releases/latest)。本地构建默认同时生成单文件版和文件夹版，两版功能一致，均无需安装 Python，并附带 Liberation Sans 与原生拖放组件。
 
-| 版本 | 本地运行入口（以 `dist/1.2.5` 为例） | 分发包 |
+| 版本 | 本地运行入口（以 `dist/1.2.6` 为例） | 分发包 |
 | --- | --- | --- |
-| 单文件版 | `dist/1.2.5/VRLab2GIF.exe`，可单独复制运行 | `VRLab2GIF-Windows-x64.zip`，附说明文档 |
-| 文件夹版 | `dist/1.2.5/VRLab2GIF/VRLab2GIF.exe`，保留整个目录及 `_internal` | `VRLab2GIF-Windows-x64-folder.zip`，完整解压后运行 |
+| 单文件版 | `dist/1.2.6/VRLab2GIF.exe`，可单独复制运行 | `VRLab2GIF-Windows-x64.zip`，附说明文档 |
+| 文件夹版 | `dist/1.2.6/VRLab2GIF/VRLab2GIF.exe`，保留整个目录及 `_internal` | `VRLab2GIF-Windows-x64-folder.zip`，完整解压后运行 |
 
 文件夹版可用于单文件版启动较慢的终端。单文件版启动时会先将内置依赖展开到临时目录，文件夹版直接使用随包附带的依赖，参见 [PyInstaller 官方说明](https://pyinstaller.org/en/v6.16.0/operating-mode.html#how-the-one-file-program-works)。
 
@@ -62,7 +64,7 @@ VRLab 2024 R1 的 COM 导出文件名使用索引，与手动菜单导出的角�
 - 原生文件方式接收 `.OptisVR` / `.speos360` 中已有的观察视角。
 - PNG 文件夹方式只扫描所选目录的当前层，不扫描子目录。图片须按 `<前缀>_Image_<H>°_<V>°.png` 命名，例如 `demo_Image_-30°_10°.png`；不符合格式的 PNG 会跳过并记录到日志。PNG 单图应放入文件夹后导入。
 - 尚不支持沉浸式全景及 XMP、EXR、HDR、PIC。这些格式需要另行开发渲染流程。所用 [官方导出接口](https://developer.ansys.com/docs/speos-labs-automation-2024-r2/virtual_reality_lab/exporting_data/labvr_exportallobserverimages.md) 要求文件包含观察视角。
-- 对符合角度命名格式的 PNG（包括手动导入的文件夹），GIF 左上角会用内嵌 **Arial Regular** 标注白字黑描边的角度。字号可调整。每个 V 生成独立 GIF，H 升序；`collection_all_angles.gif` 按 V 降序、H 升序排列。两种输入均使用当前每帧延时、字号和角度筛选设置。
+- 对符合角度命名格式的 PNG（包括手动导入的文件夹），GIF 左上角会用内嵌 **Liberation Sans Regular** 标注白字黑描边的角度。字号可调整。每个 V 生成独立 GIF，H 升序；`collection_all_angles.gif` 按 V 降序、H 升序排列。两种输入均使用当前每帧延时、字号和角度筛选设置。
 - 若 COM 导出名称只有索引，先从源文件的已验证 XML 角度表恢复 H/V，并转换弧度为度。仅在元数据布局、索引网格、导出数量完整匹配时恢复；未知布局、立体模式或不完整网格会明确记录原因，再按索引生成 `collection_all_views.gif`，此时不标注角度、不分组且必须清除筛选。未修改原始视角文件。
 - 单视角只生成静态 GIF，不会生成新的相机视角。导出使用文件打开后的默认配置与显示设置，不修改源文件。
 
@@ -90,7 +92,7 @@ python main.py
 构建：
 
 ```powershell
-.\build.ps1 -OutputDirectory 'dist\1.2.5'
+.\build.ps1 -OutputDirectory 'dist\1.2.6'
 ```
 
 每次构建都会同时生成单文件 EXE、文件夹版和两种 ZIP，不需要额外切换打包参数。两版复用同一份依赖分析、代码和资源；各自从发布目录运行自检，验证字体、文件及文件夹拖放、PNG→GIF 和 PPT 导出后再打包，并分别附带说明文档与许可。直接构建 `VRLab2GIF.spec` 也会同时输出两种程序形态。
@@ -104,7 +106,7 @@ python -m unittest discover -s tests -v
 python main.py --smoke-test
 ```
 
-测试覆盖编码、排序、筛选、原生导出隔离、取消、损坏文件、保留旧结果、内嵌 Arial、紧凑布局、主题和拖放。GUI 测试只替代外部 Ansys 导出步骤，仍实际编码 GIF。拖放测试加载原生 tkdnd 扩展，并经过 Windows OLE 到 Tk 的事件桥验证路径与动作；源码及打包 EXE 的自检均验证该桥接，不会启动 Ansys。
+测试覆盖编码、排序、筛选、原生导出隔离、取消、损坏文件、保留旧结果、内嵌 Liberation Sans、紧凑布局、主题和拖放。GUI 测试只替代外部 Ansys 导出步骤，仍实际编码 GIF。拖放测试加载原生 tkdnd 扩展，并经过 Windows OLE 到 Tk 的事件桥验证路径与动作；源码及打包 EXE 的自检均验证该桥接，不会启动 Ansys。
 
 发布构建会运行自动测试以及源码、EXE 的字体、拖放与 PPT 导出自检。样例来源和历史实测记录保存在 `samples/ansys-vrlab/`；大型下载文件及生成的 GIF、PNG、PPT 不进入 Git 仓库。
 
@@ -122,7 +124,9 @@ python tools/verify_native_conversion.py samples/ansys-vrlab/test_07_VRLab_expor
 
 本项目采用 [MIT License](LICENSE)，Copyright (c) 2026 Intelligent Efficiency Team。源码、单文件 EXE 内及两种分发包均包含该许可证。
 
-第三方组件、字体及 Ansys 样例保留各自原有许可，不属于本项目 MIT 授权范围。Arial 的来源及权利说明见 [字体资源说明](docs/fonts.md)，Ansys 样例许可见 [LICENSE-ANSYS.txt](samples/ansys-vrlab/LICENSE-ANSYS.txt)。
+第三方组件、字体及 Ansys 样例保留各自原有许可，不属于本项目 MIT 授权范围。Liberation Sans 的来源、OFL 1.1 许可及再分发说明见 [字体资源说明](docs/fonts.md)，Ansys 样例许可见 [LICENSE-ANSYS.txt](samples/ansys-vrlab/LICENSE-ANSYS.txt)。
+
+第三方组件总览见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。每次构建从实际环境收集许可与版本，保存为 `docs/third-party/generated/`，并完整内嵌到两种程序的 `third-party/generated/`。收集失败会停止构建；也可先运行 `python tools/collect_licenses.py --output .license-bundle` 检查。
 
 原生拖放组件采用 [tkinterdnd2](https://github.com/Eliav2/tkinterdnd2)，其项目许可为 MIT；组件与所含 TkDnD 的原始许可见分发包 `docs/third-party/`。
 

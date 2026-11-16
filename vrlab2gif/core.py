@@ -87,11 +87,11 @@ class _Record:
 def bundled_font_path() -> Path:
     """Locate the font inside source resources or PyInstaller's extracted bundle."""
     resource_root = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent.parent))
-    return resource_root / "fonts" / "arial.ttf"
+    return resource_root / "fonts" / "LiberationSans-Regular.ttf"
 
 
 def load_font(font_size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    """Prefer embedded Arial without installing it into the OS font directory."""
+    """Prefer embedded Liberation Sans without installing it into the OS font directory."""
     candidates = [bundled_font_path()]
     if sys.platform == "win32":
         system_fonts = Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts"

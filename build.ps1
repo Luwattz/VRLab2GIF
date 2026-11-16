@@ -81,6 +81,7 @@ try {
     Copy-Item -LiteralPath "README.md" -Destination (Join-Path $releaseRoot "README.md") -Force
     Copy-Item -LiteralPath "QUICKSTART.txt" -Destination (Join-Path $releaseRoot "QUICKSTART.txt") -Force
     Copy-Item -LiteralPath "LICENSE" -Destination (Join-Path $releaseRoot "LICENSE") -Force
+    Copy-Item -LiteralPath "THIRD_PARTY_NOTICES.md" -Destination (Join-Path $releaseRoot "THIRD_PARTY_NOTICES.md") -Force
     $releaseDocs = Join-Path $releaseRoot "docs"
     New-Item -ItemType Directory -Path $releaseDocs -Force | Out-Null
     Copy-Item -LiteralPath "docs\apple-design.png" -Destination (Join-Path $releaseDocs "apple-design.png") -Force
@@ -92,15 +93,23 @@ try {
     Copy-Item -LiteralPath "docs\ppt-export.md", "docs\ppt-export-dark.png", "docs\ppt-export-light.png" -Destination $releaseDocs -Force
     $releaseNotices = Join-Path $releaseDocs "third-party"
     New-Item -ItemType Directory -Path $releaseNotices -Force | Out-Null
-    Copy-Item -LiteralPath "docs\third-party\tkinterdnd2-LICENSE.txt", "docs\third-party\TkDnD-LICENSE.txt" -Destination $releaseNotices -Force
+    # Replace old generated notices so rebuilt archives cannot retain stale
+    # dependency versions. The spec has collected this build's actual notices.
+    if (Test-Path -LiteralPath $releaseNotices) {
+        Remove-Item -LiteralPath $releaseNotices -Recurse -Force
+    }
+    Copy-Item -LiteralPath "docs\third-party" -Destination $releaseNotices -Recurse -Force
+    Copy-Item -LiteralPath ".license-bundle" -Destination (Join-Path $releaseNotices "generated") -Recurse -Force
     $releaseAssets = Join-Path $releaseRoot "assets"
     New-Item -ItemType Directory -Path $releaseAssets -Force | Out-Null
     Copy-Item -LiteralPath "assets\vrlab2gif-logo.png", "assets\vrlab2gif.ico", "assets\LOGO.md" -Destination $releaseAssets -Force
-    $releaseFiles = @($executable, (Join-Path $releaseRoot "README.md"), (Join-Path $releaseRoot "QUICKSTART.txt"), (Join-Path $releaseRoot "LICENSE"), $releaseDocs, $releaseAssets)
+    $releaseFiles = @($executable, (Join-Path $releaseRoot "README.md"), (Join-Path $releaseRoot "QUICKSTART.txt"), (Join-Path $releaseRoot "LICENSE"), (Join-Path $releaseRoot "THIRD_PARTY_NOTICES.md"), $releaseDocs, $releaseAssets)
     Compress-Archive -LiteralPath $releaseFiles -DestinationPath (Join-Path $releaseRoot "VRLab2GIF-Windows-x64.zip") -Force
-    Copy-Item -LiteralPath "README.md", "QUICKSTART.txt", "LICENSE" -Destination $folderRoot -Force
+    Copy-Item -LiteralPath "README.md", "QUICKSTART.txt", "LICENSE", "THIRD_PARTY_NOTICES.md" -Destination $folderRoot -Force
     Copy-Item -LiteralPath $releaseDocs, $releaseAssets -Destination $folderRoot -Recurse -Force
     Compress-Archive -LiteralPath $folderRoot -DestinationPath (Join-Path $releaseRoot "VRLab2GIF-Windows-x64-folder.zip") -Force
+    & $Python tools/verify_distribution.py --directory $releaseRoot
+    if ($LASTEXITCODE -ne 0) { throw "Distribution license/font verification failed." }
     Write-Host "Single-file build: $executable"
     Write-Host "Folder build: $folderExecutable (keep the entire VRLab2GIF folder)"
     Write-Host "Archives: VRLab2GIF-Windows-x64.zip and VRLab2GIF-Windows-x64-folder.zip"
