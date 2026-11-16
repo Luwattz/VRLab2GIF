@@ -5,6 +5,8 @@ import argparse
 import hashlib
 import json
 from pathlib import Path, PurePosixPath
+import subprocess
+import tempfile
 import zipfile
 
 FONT = "fonts/LiberationSans-Regular.ttf"
@@ -74,8 +76,20 @@ def verify(directory: Path, project: Path) -> None:
             check_resources(read, entries, outside, prefix)
             if prefix:
                 check_resources(read, entries, resources, prefix + "_internal/")
+                if read(prefix + "VRLab2GIF.exe") != (directory / "VRLab2GIF/VRLab2GIF.exe").read_bytes():
+                    raise ValueError("Folder ZIP contains a different EXE.")
             elif read("VRLab2GIF.exe") != exe.read_bytes():
                 raise ValueError("Single-file ZIP contains a different EXE.")
+
+    # Exercise the public export entry point in both real executables, without
+    # requiring users to know PyInstaller's extraction directory.
+    notices = {name: data for name, data in resources.items() if name != FONT}
+    with tempfile.TemporaryDirectory(prefix="vrlab2gif-notices-") as temporary:
+        for label, executable in (("single", exe), ("folder", directory / "VRLab2GIF/VRLab2GIF.exe")):
+            target = Path(temporary) / label
+            subprocess.run([str(executable.resolve()), "--export-licenses", str(target)], check=True, timeout=60)
+            check_resources(lambda name: (target / name).read_bytes(),
+                            [p.relative_to(target).as_posix() for p in target.rglob("*")], notices)
 
     checksums = []
     for name in ("VRLab2GIF.exe", "VRLab2GIF-Windows-x64.zip", "VRLab2GIF-Windows-x64-folder.zip"):

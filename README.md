@@ -128,6 +128,8 @@ python tools/verify_native_conversion.py samples/ansys-vrlab/test_07_VRLab_expor
 
 第三方组件总览见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。每次构建从实际环境收集许可与版本，保存为 `docs/third-party/generated/`，并完整内嵌到两种程序的 `third-party/generated/`。收集失败会停止构建；也可先运行 `python tools/collect_licenses.py --output .license-bundle` 检查。
 
+单独使用 EXE 时，可执行 `VRLab2GIF.exe --export-licenses <新的或空的目录>` 导出完整声明、许可和版本清单，无需启动界面或 Ansys。两个 ZIP 同时提供可直接阅读的文本。
+
 原生拖放组件采用 [tkinterdnd2](https://github.com/Eliav2/tkinterdnd2)，其项目许可为 MIT；组件与所含 TkDnD 的原始许可见分发包 `docs/third-party/`。
 
 开发公司：Intelligent Efficiency Team

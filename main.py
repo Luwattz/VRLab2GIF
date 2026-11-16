@@ -9,7 +9,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Virtual Reality Lab 视角合成器")
     parser.add_argument("--smoke-test", action="store_true", help="创建并关闭界面，验证应用可启动。")
     parser.add_argument("--native-export", type=str, help=argparse.SUPPRESS)
+    parser.add_argument("--export-licenses", metavar="DIRECTORY", help="导出随包版权声明、许可和版本清单到空目录。")
     args = parser.parse_args(argv)
+    if args.export_licenses:
+        from pathlib import Path
+        from vrlab2gif.licensing import export_licenses
+        export_licenses(Path(args.export_licenses))
+        return 0
     if args.native_export:
         from pathlib import Path
         from vrlab2gif.native import export_helper

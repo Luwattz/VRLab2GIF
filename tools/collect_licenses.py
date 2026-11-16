@@ -13,6 +13,7 @@ import json
 from pathlib import Path, PurePosixPath
 import re
 import shutil
+import struct
 import sys
 import tkinter
 
@@ -151,10 +152,30 @@ def collect(output: Path, allow_non_windows: bool = False) -> Collector:
             interpreter.eval("destroy .")
         except tkinter.TclError:
             pass
+    vendored_files = {}
     for source in sorted((PROJECT / "docs" / "third-party").glob("*.txt")):
         if re.match(r"^(Tcl|Tk)-[0-9].*-LICENSE\.txt$", source.name):
             continue  # Runtime collection selected only the installed version.
-        result.copy(source, Path("licenses") / "vendored" / source.name)
+        vendored_files[source.name] = result.copy(source, Path("licenses") / "vendored" / source.name)
+    for required in ("LiberationFonts-LICENSE.txt", "TkDnD-LICENSE.txt", "tkinterdnd2-LICENSE.txt"):
+        if required not in vendored_files:
+            raise RuntimeError(f"Missing vendored notice: {required}")
+    result.components.append({"name": "Liberation Sans Regular", "version": "2.1.5",
+                              "scope": "embedded font",
+                              "files": [vendored_files["LiberationFonts-LICENSE.txt"]]})
+    tkdnd_dist = metadata.distribution("tkinterdnd2")
+    target_dir = ("win-x64" if struct.calcsize("P") == 8 else "win-x86") if strict else "linux-x64"
+    indexes = [file for file in tkdnd_dist.files or ()
+               if str(file).replace("\\", "/").endswith(f"/{target_dir}/pkgIndex.tcl")]
+    versions = set()
+    for index in indexes:
+        text = Path(tkdnd_dist.locate_file(index)).read_text(encoding="utf-8")
+        versions.update(re.findall(r"package\s+ifneeded\s+tkdnd\s+([0-9.]+)", text))
+    if len(versions) != 1:
+        raise RuntimeError(f"Cannot identify the TkDnD version for {target_dir}")
+    result.components.append({"name": "TkDnD", "version": versions.pop(),
+                              "scope": f"native drag-and-drop ({target_dir})",
+                              "files": [vendored_files["TkDnD-LICENSE.txt"]]})
     result.copy(PROJECT / "THIRD_PARTY_NOTICES.md", Path("THIRD_PARTY_NOTICES.md"))
     result.finish(strict)
     return result
