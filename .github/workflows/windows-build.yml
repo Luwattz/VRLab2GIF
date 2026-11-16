@@ -5,6 +5,11 @@ on:
     branches: [main, 'codex/**']
   pull_request:
   workflow_dispatch:
+    inputs:
+      publish_release:
+        description: Publish the verified v1.2.6 draft release
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -30,3 +35,25 @@ jobs:
             dist/1.2.6/*.zip
             dist/1.2.6/SHA256SUMS.txt
           if-no-files-found: error
+
+  publish:
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_release && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: VRLab2GIF-1.2.6-Windows-x64
+          path: release
+      - name: Upload and publish verified assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          cd release
+          sha256sum --check SHA256SUMS.txt
+          gh release upload v1.2.6 VRLab2GIF.exe VRLab2GIF-Windows-x64.zip VRLab2GIF-Windows-x64-folder.zip SHA256SUMS.txt --clobber
+          gh release edit v1.2.6 --target "$GITHUB_SHA" --draft=false --latest
