@@ -32,7 +32,12 @@ class AppearanceUsabilityTests(unittest.TestCase):
 
     def _show(self, *, scaling: float = 4 / 3, compact: bool = False) -> GifCreatorApp:
         self.root.tk.call("tk", "scaling", scaling)
-        self.app = GifCreatorApp(self.root)
+        # These layout scenarios specify text scaling and need a fixed work
+        # area too. CI's service desktop is only 1024x768 and cannot change
+        # display modes, so it otherwise forces a different responsive layout.
+        self.root.maxsize(3840, 2160)
+        with patch("vrlab2gif.app.window_work_area", return_value=(0, 0, 1920, 1080)):
+            self.app = GifCreatorApp(self.root)
         if compact:
             minimum_width, minimum_height = self.root.minsize()
             self.root.geometry(f"{minimum_width}x{minimum_height}+20+20")
