@@ -18,6 +18,9 @@ jobs:
         with:
           python-version: '3.12'
           architecture: x64
+      - name: Configure desktop for GUI layout tests
+        shell: pwsh
+        run: ./tools/set_ci_display.ps1
       - name: Test and build both distributions
         shell: pwsh
         run: ./build.ps1 -Python (Get-Command python).Source -OutputDirectory dist/1.2.6
